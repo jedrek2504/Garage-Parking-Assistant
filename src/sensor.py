@@ -1,0 +1,1 @@
+# Used for reading distance measurements from an ultrasonic sensor.
