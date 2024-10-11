@@ -2,8 +2,9 @@ import RPi.GPIO as GPIO
 import time
 
 # Define the GPIO pins for the sensor
-TRIG = 23
-ECHO = 24
+ECHO = 23
+TRIG = 24
+
 
 def setup_sensor():
     """Initializes the GPIO pins for the ultrasonic sensor."""
