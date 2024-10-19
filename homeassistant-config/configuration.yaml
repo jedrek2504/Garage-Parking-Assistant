@@ -1,4 +1,3 @@
-
 # Loads default set of integrations. Do not remove.
 default_config:
 
@@ -9,3 +8,18 @@ frontend:
 automation: !include automations.yaml
 script: !include scripts.yaml
 scene: !include scenes.yaml
+
+# Konfiguracja paska LED WS2812B przez GPIO
+light:
+  - platform: rpi_gpio
+    lights:
+      - name: "Parking LED Strip"
+        port: 18  # GPIO18 dla WS2812B
+        invert_logic: false
+
+# Konfiguracja czujnika ultradźwiękowego HC-SR04
+binary_sensor:
+  - platform: rpi_gpio
+    ports:
+      24: "Ultrasonic Echo"  # GPIO24 jako pin Echo
+      23: "Ultrasonic Trigger"  # GPIO23 jako pin Trigger
