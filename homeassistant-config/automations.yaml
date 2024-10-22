@@ -1,22 +1,36 @@
-automation:
-  - alias: "Zmiana koloru LED w zależności od odległości"
-    trigger:
-      platform: numeric_state
-      entity_id: sensor.distance
-      above: 10
-    action:
-      service: light.turn_on
-      entity_id: light.parking_led_strip
-      data:
-        rgb_color: [0, 255, 0]  # Zielony
+- alias: "Set LED Color Based on Distance"
+  trigger:
+    platform: numeric_state
+    entity_id: sensor.parking_distance
+    below: 10
+  action:
+    service: light.turn_on
+    entity_id: light.parking_led_strip
+    data:
+      rgb_color: [255, 0, 0]
+      brightness: 200  # Add brightness control
 
-  - alias: "Zmiana na czerwony, gdy odległość < 10 cm"
-    trigger:
-      platform: numeric_state
-      entity_id: sensor.distance
-      below: 10
-    action:
-      service: light.turn_on
-      entity_id: light.parking_led_strip
-      data:
-        rgb_color: [255, 0, 0]  # Czerwony
+- alias: "Set LED Color to Green for Safe Distance"
+  trigger:
+    platform: numeric_state
+    entity_id: sensor.parking_distance
+    above: 20
+  action:
+    service: light.turn_on
+    entity_id: light.parking_led_strip
+    data:
+      rgb_color: [0, 255, 0]
+      brightness: 200  # Add brightness control
+
+- alias: "Set LED Color to Orange for Caution Zone"
+  trigger:
+    platform: numeric_state
+    entity_id: sensor.parking_distance
+    below: 20
+    above: 10
+  action:
+    service: light.turn_on
+    entity_id: light.parking_led_strip
+    data:
+      rgb_color: [255, 165, 0]
+      brightness: 200  # Add brightness control

@@ -1,25 +1,18 @@
-# Loads default set of integrations. Do not remove.
-default_config:
-
-# Load frontend themes from the themes folder
-frontend:
-  themes: !include_dir_merge_named themes
+mqtt:
+  sensor:
+    - name: "Parking Distance"
+      state_topic: "garage/parking/distance"
+      unit_of_measurement: "cm"
+      value_template: "{{ value | float | round(2) }}"
+  light:
+    - name: "Parking LED Strip"
+      schema: json
+      state_topic: "garage/parking/led/state"
+      command_topic: "garage/parking/led/set"
+      brightness: true
+      supported_color_modes: ["rgb"]
+      qos: 0
+      optimistic: false
 
 automation: !include automations.yaml
-script: !include scripts.yaml
-scene: !include scenes.yaml
-
-# Konfiguracja paska LED WS2812B przez GPIO
-light:
-  - platform: rpi_gpio
-    lights:
-      - name: "Parking LED Strip"
-        port: 18  # GPIO18 dla WS2812B
-        invert_logic: false
-
-# Konfiguracja czujnika ultradźwiękowego HC-SR04
-binary_sensor:
-  - platform: rpi_gpio
-    ports:
-      24: "Ultrasonic Echo"  # GPIO24 jako pin Echo
-      23: "Ultrasonic Trigger"  # GPIO23 jako pin Trigger
+ 
