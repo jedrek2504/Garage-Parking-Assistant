@@ -183,3 +183,6 @@ homeassistant-config/home-assistant_v2.db*
 
 # Plik z poufnymi danymi
 homeassistant-config/secrets.yaml
+
+# Plik z poufnymi danymi
+homeassistant-config/custom_components/
