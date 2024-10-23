@@ -9,10 +9,11 @@ red_distance_threshold = 10
 orange_distance_threshold = 20
 brightness = 20
 system_enabled = True
+settings_received = False  # Track whether settings have been received
 
 # MQTT setup to handle settings updates
 def on_message(client, userdata, msg):
-    global red_distance_threshold, orange_distance_threshold, brightness, system_enabled
+    global red_distance_threshold, orange_distance_threshold, brightness, system_enabled, settings_received
     
     payload = msg.payload.decode()
     print(f"Received MQTT message on {msg.topic}: {payload}")  # Log received payload for debugging
@@ -24,6 +25,7 @@ def on_message(client, userdata, msg):
             orange_distance_threshold = data.get("orange_distance_threshold", orange_distance_threshold)
             brightness = data.get("brightness", brightness)
             system_enabled = data.get("enabled", system_enabled)
+            settings_received = True  # Mark that settings have been received
         elif msg.topic == "garage/parking/led/set":
             if data.get("state") == "ON":
                 color = data.get("color", {})
@@ -46,11 +48,25 @@ mqtt_client.subscribe("garage/parking/led/set")
 mqtt_client.subscribe("garage/parking/settings")
 mqtt_client.loop_start()
 
+# Function to request the current settings on startup
+def request_current_settings():
+    print("Requesting current settings from Home Assistant...")
+    mqtt_client.publish("garage/parking/settings/get", "")  # Publish request to get current settings
+
 if __name__ == "__main__":
     try:
         # Setup the sensor
         setup_sensor()
 
+        # Request current settings from Home Assistant
+        request_current_settings()
+
+        # Wait until settings are received before proceeding
+        while not settings_received:
+            print("Waiting for settings...")
+            time.sleep(1)  # Wait for 1 second before checking again
+
+        # Main loop for measuring distance and controlling the LEDs
         while True:
             if system_enabled:
                 # Measure distance only when the system is enabled

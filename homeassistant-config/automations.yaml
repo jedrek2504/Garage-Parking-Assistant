@@ -9,6 +9,7 @@
     data:
       rgb_color: [255, 0, 0]
       brightness: "{{ states('input_number.led_brightness') | int }}"
+
 - alias: "Set LED Color to Green for Safe Distance"
   trigger:
     platform: numeric_state
@@ -51,5 +52,21 @@
           "red_distance_threshold": {{ states('input_number.red_distance_threshold') | int }},
           "orange_distance_threshold": {{ states('input_number.orange_distance_threshold') | int }},
           "brightness": {{ states('input_number.led_brightness') | int }},
-          "enabled": {{ (states('input_boolean.parking_system_enabled') == 'on') | lower }}
+          "enabled": {{ (states('input_boolean.parking_system_enabled') == 'on') | string | lower }}
+        }
+
+- alias: "Send Settings on Request"
+  trigger:
+    platform: mqtt
+    topic: "garage/parking/settings/get"
+  action:
+    service: mqtt.publish
+    data_template:
+      topic: "garage/parking/settings"
+      payload: >
+        {
+          "red_distance_threshold": {{ states('input_number.red_distance_threshold') | int }},
+          "orange_distance_threshold": {{ states('input_number.orange_distance_threshold') | int }},
+          "brightness": {{ states('input_number.led_brightness') | int }},
+          "enabled": {{ (states('input_boolean.parking_system_enabled') == 'on') | string | lower }}
         }
