@@ -14,5 +14,31 @@ mqtt:
       qos: 0
       optimistic: false
 
+input_number:
+  red_distance_threshold:
+    name: "Red Distance Threshold"
+    initial: 10
+    min: 1
+    max: 100
+    step: 1
+
+  orange_distance_threshold:
+    name: "Orange Distance Threshold"
+    initial: 20
+    min: 1
+    max: 100
+    step: 1
+
+  led_brightness:
+    name: "LED Brightness"
+    initial: 20
+    min: 0
+    max: 255
+    step: 5
+
+input_boolean:
+  parking_system_enabled:
+    name: "Parking System Enabled"
+    initial: true
+
 automation: !include automations.yaml
- 
