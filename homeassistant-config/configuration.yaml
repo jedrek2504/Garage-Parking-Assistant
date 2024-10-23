@@ -4,15 +4,6 @@ mqtt:
       state_topic: "garage/parking/distance"
       unit_of_measurement: "cm"
       value_template: "{{ value | float | round(2) }}"
-  light:
-    - name: "Parking LED Strip"
-      schema: json
-      state_topic: "garage/parking/led/state"
-      command_topic: "garage/parking/led/set"
-      brightness: true
-      supported_color_modes: ["rgb"]
-      qos: 0
-      optimistic: false
 
 input_number:
   red_distance_threshold:
