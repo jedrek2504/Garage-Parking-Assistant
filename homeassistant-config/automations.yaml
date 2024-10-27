@@ -4,11 +4,15 @@
     entity_id: sensor.parking_distance
     below: 10
   action:
-    service: light.turn_on
-    entity_id: light.parking_led_strip
-    data:
-      rgb_color: [255, 0, 0]
-      brightness: "{{ states('input_number.led_brightness') | int }}"
+    service: mqtt.publish
+    data_template:
+      topic: "garage/parking/led/set"
+      payload: >
+        {
+          "state": "ON",
+          "color": {"r": 255, "g": 0, "b": 0},
+          "brightness": {{ states('input_number.led_brightness') | int }}
+        }
 
 - alias: "Set LED Color to Green for Safe Distance"
   trigger:
@@ -16,11 +20,15 @@
     entity_id: sensor.parking_distance
     above: 20
   action:
-    service: light.turn_on
-    entity_id: light.parking_led_strip
-    data:
-      rgb_color: [0, 255, 0]
-      brightness: "{{ states('input_number.led_brightness') | int }}"
+    service: mqtt.publish
+    data_template:
+      topic: "garage/parking/led/set"
+      payload: >
+        {
+          "state": "ON",
+          "color": {"r": 0, "g": 255, "b": 0},
+          "brightness": {{ states('input_number.led_brightness') | int }}
+        }
 
 - alias: "Set LED Color to Orange for Caution Zone"
   trigger:
@@ -29,11 +37,15 @@
     below: 20
     above: 10
   action:
-    service: light.turn_on
-    entity_id: light.parking_led_strip
-    data:
-      rgb_color: [255, 165, 0]
-      brightness: "{{ states('input_number.led_brightness') | int }}"
+    service: mqtt.publish
+    data_template:
+      topic: "garage/parking/led/set"
+      payload: >
+        {
+          "state": "ON",
+          "color": {"r": 255, "g": 165, "b": 0},
+          "brightness": {{ states('input_number.led_brightness') | int }}
+        }
 
 - alias: "Send distance thresholds and brightness to Raspberry Pi"
   trigger:
