@@ -1,11 +1,17 @@
+# main.py
+
 import time
+import threading
+import json
 import paho.mqtt.client as mqtt
 from sensor import setup_sensor, measure_distance
 from led import set_led_color, clear_leds
-import json
+
+# Import the run_flask_app function
+from camera_stream import run_flask_app
 
 # Variables to store default MQTT settings
-red_distance_threshold = 10 
+red_distance_threshold = 10
 orange_distance_threshold = 20
 brightness = 20
 system_enabled = True
@@ -14,7 +20,7 @@ settings_received = False  # Track whether settings have been received
 # MQTT setup to handle settings updates
 def on_message(client, userdata, msg):
     global red_distance_threshold, orange_distance_threshold, brightness, system_enabled, settings_received
-    
+
     payload = msg.payload.decode()
     print(f"Received MQTT message on {msg.topic}: {payload}")  # Log received payload for debugging
     try:
@@ -61,6 +67,11 @@ if __name__ == "__main__":
         # Request current settings from Home Assistant
         request_current_settings()
 
+        # Start the Flask app in a separate thread
+        flask_thread = threading.Thread(target=run_flask_app)
+        flask_thread.daemon = True  # Daemonize thread to exit when main thread exits
+        flask_thread.start()
+
         # Wait until settings are received before proceeding
         while not settings_received:
             print("Waiting for settings...")
@@ -71,18 +82,21 @@ if __name__ == "__main__":
             if system_enabled:
                 # Measure distance only when the system is enabled
                 distance = measure_distance()
-                print(f"Measured Distance: {distance} cm")
+                if distance is not None:
+                    print(f"Measured Distance: {distance} cm")
 
-                # Decide LED color based on the measured distance
-                if distance < red_distance_threshold:
-                    set_led_color(255, 0, 0, brightness)  # Red for close proximity
-                elif distance < orange_distance_threshold:
-                    set_led_color(255, 165, 0, brightness)  # Orange for caution zone
+                    # Decide LED color based on the measured distance
+                    if distance < red_distance_threshold:
+                        set_led_color(255, 0, 0, brightness)  # Red for close proximity
+                    elif distance < orange_distance_threshold:
+                        set_led_color(255, 165, 0, brightness)  # Orange for caution zone
+                    else:
+                        set_led_color(0, 255, 0, brightness)  # Green for safe distance
+
+                    # Publish distance data to MQTT
+                    mqtt_client.publish("garage/parking/distance", distance)
                 else:
-                    set_led_color(0, 255, 0, brightness)  # Green for safe distance
-
-                # Publish distance data to MQTT
-                mqtt_client.publish("garage/parking/distance", distance)
+                    print("Failed to measure distance")
             else:
                 # If the system is off, turn off the LEDs and minimize processing
                 clear_leds()
@@ -97,3 +111,5 @@ if __name__ == "__main__":
         clear_leds()
         mqtt_client.loop_stop()
         mqtt_client.disconnect()
+        print("MQTT client disconnected.")
+        # The Flask app will exit because the thread is a daemon
