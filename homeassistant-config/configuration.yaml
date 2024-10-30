@@ -1,12 +1,18 @@
+# Enable Mobile App Integration
 mobile_app:
 
+# MQTT Integration
 mqtt:
+
+# Sensors
   sensor:
     - name: "Parking Distance"
       state_topic: "garage/parking/distance"
       unit_of_measurement: "cm"
       value_template: "{{ value | float | round(2) }}"
+      unique_id: "sensor_parking_distance"  # Add unique ID for better management
 
+# Input Numbers (for Thresholds and Brightness)
 input_number:
   red_distance_threshold:
     name: "Red Distance Threshold"
@@ -14,6 +20,8 @@ input_number:
     min: 1
     max: 100
     step: 1
+    mode: box  # Optional for cleaner input display
+    icon: "mdi:map-marker-distance"  # Optional icon
 
   orange_distance_threshold:
     name: "Orange Distance Threshold"
@@ -21,6 +29,8 @@ input_number:
     min: 1
     max: 100
     step: 1
+    mode: box
+    icon: "mdi:map-marker-distance"
 
   led_brightness:
     name: "LED Brightness"
@@ -28,10 +38,15 @@ input_number:
     min: 0
     max: 255
     step: 5
+    mode: slider  # Optional slider for brightness control
+    icon: "mdi:brightness-6"
 
+# Input Boolean (for System Enable/Disable)
 input_boolean:
   parking_system_enabled:
     name: "Parking System Enabled"
     initial: true
+    icon: "mdi:garage"
 
+# Include Automations from a Separate File
 automation: !include automations.yaml
