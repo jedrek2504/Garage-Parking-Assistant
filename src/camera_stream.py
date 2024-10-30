@@ -3,8 +3,20 @@
 from flask import Flask, Response
 from picamera2 import Picamera2
 import cv2
+import logging
 
 def run_flask_app():
+    # Configure logging for the Flask app to log to console
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s [%(levelname)s] [Flask] %(message)s',
+        handlers=[
+            logging.StreamHandler()  # Log to console
+        ]
+    )
+
+    logger = logging.getLogger('FlaskApp')
+
     app = Flask(__name__)
 
     # Initialize Picamera2 outside the generator function
@@ -15,6 +27,7 @@ def run_flask_app():
     )
     picam2.configure(video_config)
     picam2.start()
+    logger.info("Camera started.")
 
     def gen_frames():
         try:
@@ -28,6 +41,7 @@ def run_flask_app():
                 # Encode the frame in JPEG format with reduced quality
                 ret, buffer = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 70])
                 if not ret:
+                    logger.warning("Failed to encode frame.")
                     continue  # Skip the frame if encoding failed
 
                 # Convert the frame to bytes and yield it
@@ -36,20 +50,22 @@ def run_flask_app():
                        b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
         except GeneratorExit:
             # Handle generator exit when client disconnects
-            pass
+            logger.info("Client disconnected from video feed.")
         except Exception as e:
-            print(f"Exception in gen_frames: {e}")
+            logger.exception("Exception in gen_frames.")
+        finally:
+            pass  # Camera will be stopped in the main function
 
     @app.route('/video_feed')
     def video_feed():
-        # Return the response generated along with the specific media type (mime type)
+        logger.info("Client connected to /video_feed.")
         return Response(gen_frames(),
                         mimetype='multipart/x-mixed-replace; boundary=frame')
 
     try:
         app.run(host='0.0.0.0', port=5000)
     except Exception as e:
-        print(f"Exception in Flask app: {e}")
+        logger.exception("Exception in Flask app.")
     finally:
         picam2.stop()
-        print("Camera stopped.")
+        logger.info("Camera stopped.")
