@@ -1,4 +1,5 @@
 mobile_app:
+
 mqtt:
   sensor:
     - name: "Parking Distance"

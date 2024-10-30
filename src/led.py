@@ -17,7 +17,7 @@ def clear_leds():
     pixels.show()
 
 def set_led_color(r, g, b, brightness=255):
-    """Set color and brightness for the first 15 LEDs."""
+    """Set color and brightness for the provided number of LEDs."""
     adjusted_brightness = brightness / 255  # Normalize brightness to 0.0 - 1.0
     for i in range(CONTROL_LEDS):
         pixels[i] = (
