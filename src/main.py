@@ -2,7 +2,6 @@
 
 import time
 import threading
-import json
 import logging
 from config import Config
 from mqtt_handler import MqttHandler
@@ -12,10 +11,10 @@ from camera_stream import run_flask_app
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,
     format='%(asctime)s [%(levelname)s] [%(name)s] %(message)s',
     handlers=[
-        logging.FileHandler('garage_parking_assistant.log')
+        logging.FileHandler('garage_parking_assistant.log', mode='w')
     ]
 )
 logger = logging.getLogger(__name__)
