@@ -5,8 +5,8 @@ import threading
 import logging
 from config import Config
 from mqtt_handler import MqttHandler
-from sensor import setup_sensor, measure_distance
-from led import set_led_color, clear_leds
+from sensor import UltrasonicSensor, setup_sensors, cleanup
+from led import set_led_segment_color, clear_leds
 from camera_stream import run_flask_app
 
 # Configure logging
@@ -24,31 +24,26 @@ class GarageParkingAssistant:
         self.config = Config()
         self.mqtt_handler = MqttHandler(
             config=self.config,
-            on_settings_update=self.update_settings,
-            on_led_set=self.set_led_color
+            on_settings_update=self.update_settings
         )
-        self.red_distance_threshold = self.config.RED_DISTANCE_THRESHOLD
-        self.orange_distance_threshold = self.config.ORANGE_DISTANCE_THRESHOLD
+        self.red_distance_threshold = self.config.RED_DISTANCE_THRESHOLD.copy()
+        self.orange_distance_threshold = self.config.ORANGE_DISTANCE_THRESHOLD.copy()
         self.brightness = self.config.BRIGHTNESS
         self.system_enabled = self.config.SYSTEM_ENABLED
 
+        # Initialize sensors
+        self.sensors = {
+            'front': UltrasonicSensor(trig_pin=22, echo_pin=23, name='Front Sensor'),
+            'left': UltrasonicSensor(trig_pin=24, echo_pin=25, name='Left Sensor'),
+            'right': UltrasonicSensor(trig_pin=17, echo_pin=27, name='Right Sensor')
+        }
+
     def update_settings(self, data):
-        self.red_distance_threshold = data.get("red_distance_threshold", self.red_distance_threshold)
-        self.orange_distance_threshold = data.get("orange_distance_threshold", self.orange_distance_threshold)
+        for sensor in ['front', 'left', 'right']:
+            self.red_distance_threshold[sensor] = data.get(f"red_distance_threshold_{sensor}", self.red_distance_threshold[sensor])
+            self.orange_distance_threshold[sensor] = data.get(f"orange_distance_threshold_{sensor}", self.orange_distance_threshold[sensor])
         self.brightness = data.get("brightness", self.brightness)
         self.system_enabled = data.get("enabled", self.system_enabled)
-
-    def set_led_color(self, data):
-        if data.get("state") == "ON":
-            color = data.get("color", {})
-            r = color.get("r", 0)
-            g = color.get("g", 0)
-            b = color.get("b", 0)
-            set_led_color(r, g, b, self.brightness)
-            logger.info(f"LED color set to RGB({r}, {g}, {b}) with brightness {self.brightness}.")
-        else:
-            clear_leds()
-            logger.info("LEDs cleared.")
 
     def start_flask_app(self):
         flask_thread = threading.Thread(target=run_flask_app)
@@ -58,8 +53,8 @@ class GarageParkingAssistant:
 
     def run(self):
         try:
-            setup_sensor()
-            logger.info("Sensor setup complete.")
+            setup_sensors(self.sensors)
+            logger.info("Sensors setup complete.")
 
             self.mqtt_handler.connect()
             self.mqtt_handler.request_settings()
@@ -70,23 +65,33 @@ class GarageParkingAssistant:
 
             while True:
                 if self.system_enabled:
-                    distance = measure_distance()
-                    if distance is not None:
-                        logger.debug(f"Measured Distance: {distance} cm")
+                    distances = {}
+                    for sensor_name, sensor in self.sensors.items():
+                        distance = sensor.measure_distance()
+                        if distance is not None:
+                            distances[sensor_name] = distance
+                            logger.debug(f"{sensor_name.capitalize()} measured distance: {distance} cm")
 
-                        if distance < self.red_distance_threshold:
-                            set_led_color(255, 0, 0, self.brightness)
-                            logger.debug("Set LED color to RED.")
-                        elif distance < self.orange_distance_threshold:
-                            set_led_color(255, 165, 0, self.brightness)
-                            logger.debug("Set LED color to ORANGE.")
+                            # Determine color based on thresholds
+                            if distance < self.red_distance_threshold[sensor_name]:
+                                color = (255, 0, 0)  # Red
+                            elif distance < self.orange_distance_threshold[sensor_name]:
+                                color = (255, 165, 0)  # Orange
+                            else:
+                                color = (0, 255, 0)  # Green
+
+                            # Set LED segment color
+                            set_led_segment_color(sensor_name, *color, brightness=self.brightness)
+                            logger.debug(f"{sensor_name.capitalize()} LED segment set to color {color}.")
                         else:
-                            set_led_color(0, 255, 0, self.brightness)
-                            logger.debug("Set LED color to GREEN.")
+                            logger.error(f"Failed to measure distance for {sensor_name}.")
+                            # Optionally turn off the LED segment
+                            set_led_segment_color(sensor_name, 0, 0, 0)
 
-                        self.mqtt_handler.publish_distance(distance)
-                    else:
-                        logger.error("Failed to measure distance.")
+                        time.sleep(0.05)  # Short delay to prevent sensor interference
+
+                    # Publish distances via MQTT
+                    self.mqtt_handler.publish_distances(distances)
                 else:
                     clear_leds()
                     logger.info("System disabled. LEDs turned off.")
@@ -100,6 +105,7 @@ class GarageParkingAssistant:
         finally:
             clear_leds()
             self.mqtt_handler.disconnect()
+            cleanup()
             logger.info("Resources cleaned up.")
 
 if __name__ == "__main__":

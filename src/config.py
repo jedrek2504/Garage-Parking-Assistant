@@ -1,8 +1,16 @@
 # config.py
 
 class Config:
-    RED_DISTANCE_THRESHOLD = 10
-    ORANGE_DISTANCE_THRESHOLD = 20
+    RED_DISTANCE_THRESHOLD = {
+        'front': 10,
+        'left': 10,
+        'right': 10
+    }
+    ORANGE_DISTANCE_THRESHOLD = {
+        'front': 20,
+        'left': 20,
+        'right': 20
+    }
     BRIGHTNESS = 20
     SYSTEM_ENABLED = True
     MQTT_BROKER = "localhost"

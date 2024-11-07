@@ -1,3 +1,5 @@
+# configuration.yaml
+
 # Enable Mobile App Integration
 mobile_app:
 
@@ -6,25 +8,73 @@ mqtt:
 
 # Sensors
   sensor:
-    - name: "Parking Distance"
-      state_topic: "garage/parking/distance"
+    - name: "Front Parking Distance"
+      state_topic: "garage/parking/distance/front"
       unit_of_measurement: "cm"
       value_template: "{{ value | float | round(2) }}"
-      unique_id: "sensor_parking_distance"  # Add unique ID for better management
+      unique_id: "sensor_parking_distance_front"
+  
+    - name: "Left Parking Distance"
+      state_topic: "garage/parking/distance/left"
+      unit_of_measurement: "cm"
+      value_template: "{{ value | float | round(2) }}"
+      unique_id: "sensor_parking_distance_left"
+  
+    - name: "Right Parking Distance"
+      state_topic: "garage/parking/distance/right"
+      unit_of_measurement: "cm"
+      value_template: "{{ value | float | round(2) }}"
+      unique_id: "sensor_parking_distance_right"
 
 # Input Numbers (for Thresholds and Brightness)
 input_number:
-  red_distance_threshold:
-    name: "Red Distance Threshold"
+  red_distance_threshold_front:
+    name: "Red Distance Threshold Front"
     initial: 10
     min: 1
     max: 100
     step: 1
-    mode: box  # Optional for cleaner input display
-    icon: "mdi:map-marker-distance"  # Optional icon
+    mode: box
+    icon: "mdi:map-marker-distance"
 
-  orange_distance_threshold:
-    name: "Orange Distance Threshold"
+  orange_distance_threshold_front:
+    name: "Orange Distance Threshold Front"
+    initial: 20
+    min: 1
+    max: 100
+    step: 1
+    mode: box
+    icon: "mdi:map-marker-distance"
+
+  red_distance_threshold_left:
+    name: "Red Distance Threshold Left"
+    initial: 10
+    min: 1
+    max: 100
+    step: 1
+    mode: box
+    icon: "mdi:map-marker-distance"
+
+  orange_distance_threshold_left:
+    name: "Orange Distance Threshold Left"
+    initial: 20
+    min: 1
+    max: 100
+    step: 1
+    mode: box
+    icon: "mdi:map-marker-distance"
+
+  red_distance_threshold_right:
+    name: "Red Distance Threshold Right"
+    initial: 10
+    min: 1
+    max: 100
+    step: 1
+    mode: box
+    icon: "mdi:map-marker-distance"
+
+  orange_distance_threshold_right:
+    name: "Orange Distance Threshold Right"
     initial: 20
     min: 1
     max: 100
@@ -38,7 +88,7 @@ input_number:
     min: 0
     max: 255
     step: 5
-    mode: slider  # Optional slider for brightness control
+    mode: slider
     icon: "mdi:brightness-6"
 
 # Input Boolean (for System Enable/Disable)

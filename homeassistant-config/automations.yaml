@@ -1,56 +1,15 @@
-- alias: "Set LED Color to Red for Close Distance"
-  trigger:
-    - platform: template
-      value_template: "{{ states('sensor.parking_distance') | float(default=0) < (states('input_number.red_distance_threshold') | default(10) | float) }}"
-  action:
-    - service: mqtt.publish
-      data:
-        topic: "garage/parking/led/set"
-        payload: >
-          {
-            "state": "ON",
-            "color": {"r": 255, "g": 0, "b": 0},
-            "brightness": {{ states('input_number.led_brightness') | default(20) | int }}
-          }
-
-- alias: "Set LED Color to Green for Safe Distance"
-  trigger:
-    - platform: template
-      value_template: "{{ states('sensor.parking_distance') | float(default=0) > (states('input_number.orange_distance_threshold') | default(20) | float) }}"
-  action:
-    - service: mqtt.publish
-      data:
-        topic: "garage/parking/led/set"
-        payload: >
-          {
-            "state": "ON",
-            "color": {"r": 0, "g": 255, "b": 0},
-            "brightness": {{ states('input_number.led_brightness') | default(20) | int }}
-          }
-
-- alias: "Set LED Color to Orange for Caution Zone"
-  trigger:
-    - platform: template
-      value_template: >
-        {{ (states('sensor.parking_distance') | float(default=0) > (states('input_number.red_distance_threshold') | default(10) | float)) and
-           (states('sensor.parking_distance') | float(default=0) < (states('input_number.orange_distance_threshold') | default(20) | float)) }}
-  action:
-    - service: mqtt.publish
-      data:
-        topic: "garage/parking/led/set"
-        payload: >
-          {
-            "state": "ON",
-            "color": {"r": 255, "g": 165, "b": 0},
-            "brightness": {{ states('input_number.led_brightness') | default(20) | int }}
-          }
+# automations.yaml
 
 - alias: "Send Distance Thresholds and Brightness to Raspberry Pi"
   trigger:
     - platform: state
       entity_id:
-        - input_number.red_distance_threshold
-        - input_number.orange_distance_threshold
+        - input_number.red_distance_threshold_front
+        - input_number.orange_distance_threshold_front
+        - input_number.red_distance_threshold_left
+        - input_number.orange_distance_threshold_left
+        - input_number.red_distance_threshold_right
+        - input_number.orange_distance_threshold_right
         - input_number.led_brightness
         - input_boolean.parking_system_enabled
   action:
@@ -59,8 +18,12 @@
         topic: "garage/parking/settings"
         payload: >
           {
-            "red_distance_threshold": {{ states('input_number.red_distance_threshold') | int }},
-            "orange_distance_threshold": {{ states('input_number.orange_distance_threshold') | int }},
+            "red_distance_threshold_front": {{ states('input_number.red_distance_threshold_front') | int }},
+            "orange_distance_threshold_front": {{ states('input_number.orange_distance_threshold_front') | int }},
+            "red_distance_threshold_left": {{ states('input_number.red_distance_threshold_left') | int }},
+            "orange_distance_threshold_left": {{ states('input_number.orange_distance_threshold_left') | int }},
+            "red_distance_threshold_right": {{ states('input_number.red_distance_threshold_right') | int }},
+            "orange_distance_threshold_right": {{ states('input_number.orange_distance_threshold_right') | int }},
             "brightness": {{ states('input_number.led_brightness') | int }},
             "enabled": {{ (states('input_boolean.parking_system_enabled') == 'on') | string | lower }}
           }
@@ -75,8 +38,12 @@
         topic: "garage/parking/settings"
         payload: >
           {
-            "red_distance_threshold": {{ states('input_number.red_distance_threshold') | int }},
-            "orange_distance_threshold": {{ states('input_number.orange_distance_threshold') | int }},
+            "red_distance_threshold_front": {{ states('input_number.red_distance_threshold_front') | int }},
+            "orange_distance_threshold_front": {{ states('input_number.orange_distance_threshold_front') | int }},
+            "red_distance_threshold_left": {{ states('input_number.red_distance_threshold_left') | int }},
+            "orange_distance_threshold_left": {{ states('input_number.orange_distance_threshold_left') | int }},
+            "red_distance_threshold_right": {{ states('input_number.red_distance_threshold_right') | int }},
+            "orange_distance_threshold_right": {{ states('input_number.orange_distance_threshold_right') | int }},
             "brightness": {{ states('input_number.led_brightness') | int }},
             "enabled": {{ (states('input_boolean.parking_system_enabled') == 'on') | string | lower }}
           }
