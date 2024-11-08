@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 # LED strip configuration
 LED_PIN = board.D18
-NUM_LEDS = 30  # Total number of LEDs
+NUM_LEDS = 37  # Total number of LEDs
 BRIGHTNESS = 0.2
 ORDER = neopixel.GRB
 
@@ -17,9 +17,9 @@ pixels = neopixel.NeoPixel(LED_PIN, NUM_LEDS, brightness=BRIGHTNESS, auto_write=
 
 # Define LED segments
 LED_SEGMENTS = {
-    'left': {'start': 0, 'end': 10},    # LEDs 0-9
-    'front': {'start': 10, 'end': 20},  # LEDs 10-19
-    'right': {'start': 20, 'end': 30}   # LEDs 20-29
+    'left': {'start': 0, 'end': 11},    # LEDs 0-11
+    'front': {'start': 14, 'end': 22},  # LEDs 14-22
+    'right': {'start': 25, 'end': 37}   # LEDs 25-37
 }
 
 def clear_leds():
