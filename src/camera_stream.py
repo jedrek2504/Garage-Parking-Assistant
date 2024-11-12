@@ -38,6 +38,9 @@ def run_flask_app():
                 # Optional: Remove color conversion if not needed
                 frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
 
+                # Flip the frame vertically and horizontally (rotate 180 degrees)
+                frame = cv2.flip(frame, -1)
+
                 # Encode the frame in JPEG format with reduced quality
                 ret, buffer = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 70])
                 if not ret:
@@ -47,7 +50,7 @@ def run_flask_app():
                 # Convert the frame to bytes and yield it
                 frame = buffer.tobytes()
                 yield (b'--frame\r\n'
-                       b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+                    b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
         except GeneratorExit:
             # Handle generator exit when client disconnects
             logger.info("Client disconnected from video feed.")
