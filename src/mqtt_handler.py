@@ -34,11 +34,13 @@ class MqttHandler:
             logger.error("Invalid JSON payload received.")
 
     def publish_distances(self, distances):
-        # Publish distances for each sensor
-        for sensor_name, distance in distances.items():
-            topic = f"{self.config.MQTT_TOPICS['distance']}/{sensor_name}"
-            self.client.publish(topic, distance)
-            logger.debug(f"Published {sensor_name} distance to MQTT.")
+        with distances['lock']:
+            for sensor_name in ['front', 'left', 'right']:
+                distance = distances.get(sensor_name)
+                if distance is not None:
+                    topic = f"{self.config.MQTT_BASE_TOPIC}/sensor/{sensor_name}/distance"
+                    self.client.publish(topic, str(distance))
+                    logger.debug(f"Published {sensor_name} distance: {distance} cm")
 
     def request_settings(self):
         logger.info("Requesting current settings from Home Assistant...")

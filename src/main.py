@@ -38,6 +38,9 @@ class GarageParkingAssistant:
             'right': UltrasonicSensor(trig_pin=17, echo_pin=27, name='Right Sensor')
         }
 
+        # Shared distances dictionary with a lock
+        self.distances = {'front': None, 'left': None, 'right': None, 'lock': threading.Lock()}
+
     def update_settings(self, data):
         for sensor in ['front', 'left', 'right']:
             self.red_distance_threshold[sensor] = data.get(f"red_distance_threshold_{sensor}", self.red_distance_threshold[sensor])
@@ -46,7 +49,7 @@ class GarageParkingAssistant:
         self.system_enabled = data.get("enabled", self.system_enabled)
 
     def start_flask_app(self):
-        flask_thread = threading.Thread(target=run_flask_app)
+        flask_thread = threading.Thread(target=run_flask_app, args=(self.distances,))
         flask_thread.daemon = True
         flask_thread.start()
         logger.info("Flask app started in a separate thread.")
@@ -65,11 +68,13 @@ class GarageParkingAssistant:
 
             while True:
                 if self.system_enabled:
-                    distances = {}
                     for sensor_name, sensor in self.sensors.items():
                         distance = sensor.measure_distance()
                         if distance is not None:
-                            distances[sensor_name] = distance
+                            # Update the shared distances dictionary
+                            with self.distances['lock']:
+                                self.distances[sensor_name] = distance
+
                             logger.debug(f"{sensor_name.capitalize()} measured distance: {distance} cm")
 
                             # Determine color based on thresholds
@@ -91,7 +96,7 @@ class GarageParkingAssistant:
                         time.sleep(0.05)  # Short delay to prevent sensor interference
 
                     # Publish distances via MQTT
-                    self.mqtt_handler.publish_distances(distances)
+                    self.mqtt_handler.publish_distances(self.distances)
                 else:
                     clear_leds()
                     logger.info("System disabled. LEDs turned off.")

@@ -15,6 +15,7 @@ class Config:
     SYSTEM_ENABLED = True
     MQTT_BROKER = "localhost"
     MQTT_PORT = 1883
+    MQTT_BASE_TOPIC = "garage/parking"
     MQTT_TOPICS = {
         "settings": "garage/parking/settings",
         "led_set": "garage/parking/led/set",
