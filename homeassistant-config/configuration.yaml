@@ -9,19 +9,19 @@ mqtt:
 # Sensors
   sensor:
     - name: "Front Parking Distance"
-      state_topic: "garage/parking/distance/front"
+      state_topic: "garage/parking/sensor/front/distance"
       unit_of_measurement: "cm"
       value_template: "{{ value | float | round(2) }}"
       unique_id: "sensor_parking_distance_front"
-  
+
     - name: "Left Parking Distance"
-      state_topic: "garage/parking/distance/left"
+      state_topic: "garage/parking/sensor/left/distance"
       unit_of_measurement: "cm"
       value_template: "{{ value | float | round(2) }}"
       unique_id: "sensor_parking_distance_left"
-  
+
     - name: "Right Parking Distance"
-      state_topic: "garage/parking/distance/right"
+      state_topic: "garage/parking/sensor/right/distance"
       unit_of_measurement: "cm"
       value_template: "{{ value | float | round(2) }}"
       unique_id: "sensor_parking_distance_right"
