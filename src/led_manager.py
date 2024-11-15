@@ -1,63 +1,77 @@
+# led_manager.py
+
+import time
+import threading
 import logging
 from led import set_led_segment_color, clear_leds
 
 logger = logging.getLogger(__name__)
 
-import threading
-import time
-
 class LedManager:
-    def __init__(self, config):
+    def __init__(self, config, sensor_manager):
+        self.config = config
+        self.sensor_manager = sensor_manager
         self.brightness = config.BRIGHTNESS
-        self.led_blinking = False
-        self.led_blink_thread = None
-        self.blink_color = (0, 0, 255)  # Blue color
-        self.red_distance_threshold = config.RED_DISTANCE_THRESHOLD.copy()
-        self.orange_distance_threshold = config.ORANGE_DISTANCE_THRESHOLD.copy()
+        self.blinking = False
+        self.last_blink_time = 0
+        self.blink_state = False  # False: LEDs off, True: LEDs on
+        self.blink_color = (0, 0, 255)  # Blue color for blinking
 
     def update_brightness(self, brightness):
         self.brightness = brightness
-
-    def is_blinking(self):
-        return self.led_blinking
+        logger.info(f"LED brightness updated to: {self.brightness}")
 
     def start_blinking(self):
-        if not self.led_blinking:
-            self.led_blinking = True
-            self.led_blink_thread = threading.Thread(target=self.led_blink_loop)
-            self.led_blink_thread.start()
-            logger.info("LED blinking started.")
+        if not self.blinking:
+            self.blinking = True
+            self.last_blink_time = time.time()
+            self.blink_state = False
+            logger.info("Started blinking.")
         else:
-            logger.debug("LED blinking already in progress.")
+            logger.debug("Blinking already active.")
 
     def stop_blinking(self):
-        if self.led_blinking:
-            self.led_blinking = False
-            if self.led_blink_thread:
-                self.led_blink_thread.join()
-            # After stopping blinking, update LEDs based on distance
-            logger.info("LED blinking stopped.")
+        if self.blinking:
+            self.blinking = False
+            self.clear_leds()
+            logger.info("Stopped blinking.")
+        else:
+            logger.debug("Blinking not active.")
 
-    def led_blink_loop(self):
-        while self.led_blinking:
-            # Blink LEDs on with the blinking color
-            set_led_segment_color('front', *self.blink_color, brightness=self.brightness)
-            set_led_segment_color('left', *self.blink_color, brightness=self.brightness)
-            set_led_segment_color('right', *self.blink_color, brightness=self.brightness)
-            time.sleep(0.5)
-            # Blink LEDs off
-            clear_leds()
-            time.sleep(0.5)
+    def is_blinking(self):
+        return self.blinking
 
-    def update_leds_based_on_distance(self, distances):
+    def update_leds(self, distances):
+        if self.blinking:
+            current_time = time.time()
+            if current_time - self.last_blink_time >= 0.5:
+                self.last_blink_time = current_time
+                self.blink_state = not self.blink_state
+                if self.blink_state:
+                    # Turn LEDs on
+                    set_led_segment_color('front', *self.blink_color, brightness=self.brightness)
+                    set_led_segment_color('left', *self.blink_color, brightness=self.brightness)
+                    set_led_segment_color('right', *self.blink_color, brightness=self.brightness)
+                    logger.debug("Blinking: LEDs turned on.")
+                else:
+                    # Turn LEDs off
+                    self.clear_leds()
+                    logger.debug("Blinking: LEDs turned off.")
+            # When blinking, do not update LEDs based on distance
+            return
+
+        # Handle LEDs based on distance thresholds
+        red_thresholds = self.sensor_manager.red_distance_threshold
+        orange_thresholds = self.sensor_manager.orange_distance_threshold
+
         with distances['lock']:
             for sensor_name in ['front', 'left', 'right']:
                 distance = distances.get(sensor_name)
                 if distance is not None:
                     # Determine color based on thresholds
-                    if distance < self.red_distance_threshold[sensor_name]:
+                    if distance <= red_thresholds[sensor_name]:
                         color = (255, 0, 0)  # Red
-                    elif distance < self.orange_distance_threshold[sensor_name]:
+                    elif distance <= orange_thresholds[sensor_name]:
                         color = (255, 165, 0)  # Orange
                     else:
                         color = (0, 255, 0)  # Green
@@ -68,6 +82,6 @@ class LedManager:
                     # Turn off the LED segment if distance is None
                     set_led_segment_color(sensor_name, 0, 0, 0)
 
-
     def clear_leds(self):
         clear_leds()
+        logger.debug("All LEDs cleared.")

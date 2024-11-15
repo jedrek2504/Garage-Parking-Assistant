@@ -18,7 +18,7 @@ class Config:
     MQTT_BASE_TOPIC = "garage/parking"
     MQTT_TOPICS = {
         "settings": "garage/parking/settings",
-        "led_set": "garage/parking/led/set",
-        "distance": "garage/parking/distance",
-        "settings_get": "garage/parking/settings/get"
+        "settings_get": "garage/parking/settings/get",
+        "garage_command": "garage/parking/garage_door/command",
+        "garage_state": "garage/parking/garage_door/state",
     }

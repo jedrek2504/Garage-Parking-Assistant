@@ -1,3 +1,5 @@
+# sensor_menager.py
+
 import time
 import logging
 from sensor import UltrasonicSensor, setup_sensors, cleanup
@@ -16,22 +18,23 @@ class SensorManager:
         self.orange_distance_threshold = self.config.ORANGE_DISTANCE_THRESHOLD.copy()
 
     def update_thresholds(self, data):
-        for sensor in ['front', 'left', 'right']:
-            self.red_distance_threshold[sensor] = data.get(f"red_distance_threshold_{sensor}", self.red_distance_threshold[sensor])
-            self.orange_distance_threshold[sensor] = data.get(f"orange_distance_threshold_{sensor}", self.orange_distance_threshold[sensor])
+        for color in ['red', 'orange']:
+            for sensor in ['front', 'left', 'right']:
+                key = f"{color}_distance_threshold_{sensor}"
+                if key in data:
+                    threshold = data[key]
+                    if color == 'red':
+                        self.red_distance_threshold[sensor] = threshold
+                    else:
+                        self.orange_distance_threshold[sensor] = threshold
+                    logger.debug(f"Updated {color} threshold for {sensor} to {threshold}")
 
     def setup_sensors(self):
         setup_sensors(self.sensors)
 
-    def measure_front_sensor(self, distances):
-        sensor = self.sensors['front']
-        distance = sensor.measure_distance()
-        with distances['lock']:
-            distances['front'] = distance
-        logger.debug(f"Front measured distance: {distance} cm")
-
-    def measure_side_sensors(self, distances):
-        for sensor_name in ['left', 'right']:
+    def measure_distances(self, distances):
+        # Measure all sensors
+        for sensor_name in ['front', 'left', 'right']:
             sensor = self.sensors[sensor_name]
             distance = sensor.measure_distance()
             with distances['lock']:

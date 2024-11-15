@@ -1,3 +1,5 @@
+# main.py
+
 import time
 import threading
 import logging
@@ -10,7 +12,7 @@ from camera_stream import run_flask_app
 
 # Configure logging
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=logging.INFO,
     format='%(asctime)s [%(levelname)s] [%(name)s] %(message)s',
     handlers=[
         logging.FileHandler('garage_parking_assistant.log', mode='w')
@@ -21,12 +23,13 @@ logger = logging.getLogger(__name__)
 class GarageParkingAssistant:
     def __init__(self):
         self.config = Config()
+        self.sensor_manager = SensorManager(self.config)
+        self.led_manager = LedManager(self.config, self.sensor_manager)  # Pass sensor_manager
         self.mqtt_handler = MqttHandler(
             config=self.config,
-            on_settings_update=self.update_settings
+            on_settings_update=self.update_settings,
+            on_garage_command=self.on_garage_command
         )
-        self.sensor_manager = SensorManager(self.config)
-        self.led_manager = LedManager(self.config)
         self.ai_module = AIModule(self.config, self.on_ai_detection)
 
         self.system_enabled = self.config.SYSTEM_ENABLED
@@ -37,10 +40,26 @@ class GarageParkingAssistant:
         # Parking procedure state
         self.parking_procedure_active = False
 
+        # Garage door state
+        self.garage_door_open = False
+
     def update_settings(self, data):
         self.sensor_manager.update_thresholds(data)
         self.led_manager.update_brightness(data.get("brightness", self.led_manager.brightness))
         self.system_enabled = data.get("enabled", self.system_enabled)
+        logger.info(f"System enabled set to: {self.system_enabled}")
+
+    def on_garage_command(self, command):
+        if command == "OPEN":
+            self.garage_door_open = True
+            self.start_parking_procedure()
+        elif command == "CLOSE":
+            self.garage_door_open = False
+            self.stop_parking_procedure()
+
+        # Publish the state back to Home Assistant
+        self.mqtt_handler.publish_garage_state(self.garage_door_open)
+        logger.info(f"Garage door state updated to: {'OPEN' if self.garage_door_open else 'CLOSED'}")
 
     def on_ai_detection(self, object_detected):
         if object_detected:
@@ -55,10 +74,6 @@ class GarageParkingAssistant:
         flask_thread.daemon = True
         flask_thread.start()
         logger.info("Flask app started in a separate thread.")
-
-    def is_garage_door_open(self, distance):
-        garage_door_open_threshold = 25  # Adjust as necessary
-        return distance > garage_door_open_threshold
 
     def start_parking_procedure(self):
         if not self.parking_procedure_active:
@@ -80,26 +95,15 @@ class GarageParkingAssistant:
 
     def main_loop(self):
         if self.system_enabled:
-            self.sensor_manager.measure_front_sensor(self.distances)
-            front_distance = self.distances['front']
-
-            if front_distance is not None:
-                if self.is_garage_door_open(front_distance):
-                    self.start_parking_procedure()
-                else:
-                    self.stop_parking_procedure()
+            if self.led_manager.is_blinking():
+                # Skip sensor measurements and MQTT updates during blinking
+                logger.debug("Blinking active. Skipping sensor measurements and MQTT updates.")
+                self.led_manager.update_leds(self.distances)
             else:
-                logger.error("Failed to measure distance for front sensor.")
-
-            self.sensor_manager.measure_side_sensors(self.distances)
-
-            if not self.led_manager.is_blinking():
-                self.led_manager.update_leds_based_on_distance(self.distances)
-
-            # Publish distances via MQTT
-            self.mqtt_handler.publish_distances(self.distances)
-
-            time.sleep(1)  # Adjust as needed for loop timing
+                self.sensor_manager.measure_distances(self.distances)
+                self.led_manager.update_leds(self.distances)
+                self.mqtt_handler.publish_distances(self.distances)
+            time.sleep(0.5)  # Adjust sleep time as necessary
         else:
             self.stop_parking_procedure()
             self.led_manager.clear_leds()

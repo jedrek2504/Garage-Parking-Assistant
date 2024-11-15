@@ -8,28 +8,35 @@ import time
 logger = logging.getLogger(__name__)
 
 class MqttHandler:
-    def __init__(self, config, on_settings_update):
+    def __init__(self, config, on_settings_update, on_garage_command):
         self.client = mqtt.Client()
         self.config = config
         self.on_settings_update = on_settings_update
+        self.on_garage_command = on_garage_command
         self.settings_received = False
 
     def connect(self):
         self.client.on_message = self.on_message
         self.client.connect(self.config.MQTT_BROKER, self.config.MQTT_PORT, 60)
-        self.client.subscribe(self.config.MQTT_TOPICS["settings"])
+        self.client.subscribe([
+            (self.config.MQTT_TOPICS["settings"], 0),
+            (self.config.MQTT_TOPICS["garage_command"], 0)
+        ])
         self.client.loop_start()
-        logger.info("MQTT client connected and subscribed to settings topic.")
+        logger.info("MQTT client connected and subscribed to topics.")
 
     def on_message(self, client, userdata, msg):
         payload = msg.payload.decode()
         logger.debug(f"Received MQTT message on {msg.topic}: {payload}")
         try:
-            data = json.loads(payload)
             if msg.topic == self.config.MQTT_TOPICS["settings"]:
+                data = json.loads(payload)
                 self.on_settings_update(data)
                 self.settings_received = True
                 logger.info("Settings updated from MQTT message.")
+            elif msg.topic == self.config.MQTT_TOPICS["garage_command"]:
+                self.on_garage_command(payload)
+                logger.info(f"Garage command received: {payload}")
         except json.JSONDecodeError:
             logger.error("Invalid JSON payload received.")
 
@@ -41,6 +48,11 @@ class MqttHandler:
                     topic = f"{self.config.MQTT_BASE_TOPIC}/sensor/{sensor_name}/distance"
                     self.client.publish(topic, str(distance))
                     logger.debug(f"Published {sensor_name} distance: {distance} cm")
+
+    def publish_garage_state(self, is_open):
+        state = "OPEN" if is_open else "CLOSE"
+        self.client.publish(self.config.MQTT_TOPICS["garage_state"], state)
+        logger.debug(f"Published garage door state: {state}")
 
     def request_settings(self):
         logger.info("Requesting current settings from Home Assistant...")

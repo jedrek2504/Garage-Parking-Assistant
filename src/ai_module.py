@@ -38,4 +38,4 @@ class AIModule:
     def mock_ai_detection(self):
         # Simulate AI detection result
         # Replace this with actual AI detection code
-        return False
+        return True
