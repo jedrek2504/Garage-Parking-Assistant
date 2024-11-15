@@ -4,7 +4,6 @@ from flask import Flask, Response
 from picamera2 import Picamera2
 import cv2
 import logging
-import threading
 import time
 
 def run_flask_app(distances):
