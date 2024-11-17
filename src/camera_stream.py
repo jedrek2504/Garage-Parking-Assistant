@@ -44,10 +44,10 @@ def run_flask_app(distances):
 
                 # Overlay sensor values onto the frame
                 font = cv2.FONT_HERSHEY_PLAIN
-                font_scale = 0.5  # Adjusted font scale for smaller text
-                color = (0, 255, 0)  # Green color
-                thickness = 1  # Reduced thickness
-                line_type = cv2.LINE_AA  # Anti-aliased line type for smoother text
+                font_scale = 0.5
+                color = (0, 255, 0)
+                thickness = 1
+                line_type = cv2.LINE_AA
 
                 # Acquire sensor readings with thread safety
                 with distances['lock']:
