@@ -24,7 +24,7 @@ class GarageParkingAssistant:
     def __init__(self):
         self.config = Config()
         self.sensor_manager = SensorManager(self.config)
-        self.led_manager = LedManager(self.config, self.sensor_manager)  # Pass sensor_manager
+        self.led_manager = LedManager(self.config, self.sensor_manager)
         self.mqtt_handler = MqttHandler(
             config=self.config,
             on_settings_update=self.update_settings,
@@ -34,13 +34,10 @@ class GarageParkingAssistant:
 
         self.system_enabled = self.config.SYSTEM_ENABLED
 
-        # Shared distances with a lock
         self.distances = {'front': None, 'left': None, 'right': None, 'lock': threading.Lock()}
 
-        # Parking procedure state
         self.parking_procedure_active = False
 
-        # Garage door state
         self.garage_door_open = False
 
     def update_settings(self, data):
@@ -57,7 +54,6 @@ class GarageParkingAssistant:
             self.garage_door_open = False
             self.stop_parking_procedure()
 
-        # Publish the state back to Home Assistant
         self.mqtt_handler.publish_garage_state(self.garage_door_open)
         logger.info(f"Garage door state updated to: {'OPEN' if self.garage_door_open else 'CLOSED'}")
 
@@ -96,14 +92,13 @@ class GarageParkingAssistant:
     def main_loop(self):
         if self.system_enabled:
             if self.led_manager.is_blinking():
-                # Skip sensor measurements and MQTT updates during blinking
                 logger.debug("Blinking active. Skipping sensor measurements and MQTT updates.")
                 self.led_manager.update_leds(self.distances)
             else:
                 self.sensor_manager.measure_distances(self.distances)
                 self.led_manager.update_leds(self.distances)
                 self.mqtt_handler.publish_distances(self.distances)
-            time.sleep(0.5)  # Adjust sleep time as necessary
+            time.sleep(0.5)
         else:
             self.stop_parking_procedure()
             self.led_manager.clear_leds()
