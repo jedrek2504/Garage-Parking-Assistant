@@ -32,12 +32,10 @@ class AIModule:
     def ai_analysis(self):
         while self.running:
             # Placeholder for AI analysis logic
-            # Replace this with actual AI model inference code
             object_detected = self.mock_ai_detection()
             self.detection_callback(object_detected)
-            time.sleep(1)  # Adjust the delay as needed for AI processing frequency
+            time.sleep(1)
 
     def mock_ai_detection(self):
         # Simulate AI detection result
-        # Replace this with actual AI detection code
         return True
