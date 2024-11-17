@@ -1,12 +1,7 @@
-# tests/test_ai/test_ai.py
-
 from flask import Flask, Response
 import cv2
-import threading
-import time
 import numpy as np
 import os
-import sys
 import logging
 from picamera2 import Picamera2
 
@@ -23,35 +18,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Get the directory of the current script
-script_dir = os.path.dirname(os.path.abspath(__file__))
-
-# Construct full paths to the model files
-cfg_path = os.path.join(script_dir, 'yolov4-tiny.cfg')
-weights_path = os.path.join(script_dir, 'yolov4-tiny.weights')
-names_path = os.path.join(script_dir, 'coco.names')
-
-# Check if files exist
-for path in [cfg_path, weights_path, names_path]:
-    if not os.path.isfile(path):
-        logger.error(f"Error: File {path} not found.")
-        sys.exit(1)
-
-# Load YOLOv4-Tiny model
-net = cv2.dnn.readNetFromDarknet(cfg_path, weights_path)
-net.setPreferableBackend(cv2.dnn.DNN_BACKEND_OPENCV)
-net.setPreferableTarget(cv2.dnn.DNN_TARGET_CPU)
-
-# Load class labels
-with open(names_path, 'r') as f:
-    all_classes = [line.strip() for line in f.readlines()]
-
-# Define simplified classes
-classes = ['car', 'foreign object']
-
-# Get output layer names using the correct method
-output_layers = net.getUnconnectedOutLayersNames()
-
 # Initialize camera using Picamera2
 picam2 = Picamera2()
 video_config = picam2.create_video_configuration(main={"size": (320, 240)})
@@ -59,93 +25,97 @@ picam2.configure(video_config)
 picam2.start()
 logger.info("Camera started.")
 
+# Initialize background subtractor
+background_subtractor = cv2.createBackgroundSubtractorMOG2(history=500, varThreshold=25, detectShadows=True)
+
+# Frame skipping configuration
+process_every_n_frames = 5
+frame_count = 0
+
+# Function to classify objects based on size and shape
+def classify_object(contour, frame_width, frame_height):
+    x, y, w, h = cv2.boundingRect(contour)
+    aspect_ratio = w / float(h)
+    area = cv2.contourArea(contour)
+
+    if area > 5000 and aspect_ratio > 1.5:  # Larger objects classified as cars
+        return "car"
+    elif area > 1000:  # Smaller objects classified as obstacles
+        return "foreign object"
+    return None
+
 def generate_frames():
+    global frame_count
+
     while True:
         try:
+            # Increment frame count
+            frame_count += 1
+
             # Capture frame
             frame = picam2.capture_array()
             frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
 
-            # Perform object detection
-            blob = cv2.dnn.blobFromImage(frame, 1/255.0, (416, 416), swapRB=True, crop=False)
-            net.setInput(blob)
-            outputs = net.forward(output_layers)
+            # Skip processing for non-relevant frames
+            if frame_count % process_every_n_frames != 0:
+                # Yield unprocessed frame as JPEG
+                ret, buffer = cv2.imencode('.jpg', frame)
+                frame = buffer.tobytes()
+                yield (b'--frame\r\n'
+                       b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+                continue
 
-            # Initialize detection flags
+            # Define Region of Interest (ROI)
+            roi = frame[100:300, 50:400]  # Adjust ROI as per your garage layout
+
+            # Background subtraction
+            fg_mask = background_subtractor.apply(roi)
+
+            # Noise removal
+            kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+            fg_mask = cv2.morphologyEx(fg_mask, cv2.MORPH_OPEN, kernel)
+
+            # Find contours
+            contours, _ = cv2.findContours(fg_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
             car_detected = False
             foreign_object_detected = False
 
-            # Initialize lists
-            class_ids = []
-            confidences = []
-            boxes = []
+            # Analyze contours
+            for contour in contours:
+                classification = classify_object(contour, frame.shape[1], frame.shape[0])
+                if classification:
+                    x, y, w, h = cv2.boundingRect(contour)
+                    color = (0, 255, 0) if classification == "car" else (0, 0, 255)
 
-            # Process detections
-            for output in outputs:
-                for detection in output:
-                    scores = detection[5:]
-                    class_id = np.argmax(scores)
-                    confidence = scores[class_id]
+                    # Draw rectangle and label
+                    cv2.rectangle(frame, (x + 50, y + 100), (x + w + 50, y + h + 100), color, 2)
+                    cv2.putText(frame, classification, (x + 50, y + 90),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1)
 
-                    if confidence > 0.5:
-                        # Map classes
-                        if all_classes[class_id] == 'car':
-                            mapped_class_id = 0  # Index for 'car'
-                            car_detected = True
-                        else:
-                            mapped_class_id = 1  # Index for 'foreign object'
-                            foreign_object_detected = True
+                    if classification == "car":
+                        car_detected = True
+                    elif classification == "foreign object":
+                        foreign_object_detected = True
 
-                        # Object detected
-                        center_x = int(detection[0] * frame.shape[1])
-                        center_y = int(detection[1] * frame.shape[0])
-                        width = int(detection[2] * frame.shape[1])
-                        height = int(detection[3] * frame.shape[0])
-
-                        # Rectangle coordinates
-                        x = int(center_x - width / 2)
-                        y = int(center_y - height / 2)
-
-                        boxes.append([x, y, width, height])
-                        confidences.append(float(confidence))
-                        class_ids.append(mapped_class_id)
-
-            # Apply Non-Max Suppression
-            indexes = cv2.dnn.NMSBoxes(boxes, confidences, 0.5, 0.4)
-
-            font = cv2.FONT_HERSHEY_SIMPLEX
-
-            if len(indexes) > 0:
-                for i in indexes.flatten():
-                    x, y, w, h = boxes[i]
-                    label = str(classes[class_ids[i]])
-                    confidence = str(round(confidences[i], 2))
-                    if class_ids[i] == 0:
-                        color = (0, 255, 0)  # Green for car
-                    else:
-                        color = (0, 0, 255)  # Red for foreign object
-                    cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
-                    cv2.putText(frame, label + " " + confidence, (x, y - 10), font, 0.5, color, 1)
+            # Log detections
+            if car_detected:
+                logger.info("Car detected.")
+            if foreign_object_detected:
+                logger.info("Foreign object detected.")
+            if car_detected and foreign_object_detected:
+                logger.info("Car and foreign object detected.")
 
             # Encode frame to JPEG
             ret, buffer = cv2.imencode('.jpg', frame)
             frame = buffer.tobytes()
 
-            # Yield frame in byte format
+            # Yield processed frame in byte format
             yield (b'--frame\r\n'
                    b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
 
-            # Check for both car and foreign object detection
-            if car_detected and foreign_object_detected:
-                logger.info("Car and foreign object detected.")
-                # Implement any additional logic or callbacks here
-
-        except GeneratorExit:
-            # Handle generator exit when client disconnects
-            logger.info("Client disconnected from video feed.")
-            break
         except Exception as e:
-            logger.exception("Exception in gen_frames.")
+            logger.exception("Exception in generate_frames.")
             break
 
 @app.route('/video_feed')
