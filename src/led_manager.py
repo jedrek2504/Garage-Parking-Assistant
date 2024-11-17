@@ -14,8 +14,8 @@ class LedManager:
         self.brightness = config.BRIGHTNESS
         self.blinking = False
         self.last_blink_time = 0
-        self.blink_state = False  # False: LEDs off, True: LEDs on
-        self.blink_color = (0, 0, 255)  # Blue color for blinking
+        self.blink_state = False
+        self.blink_color = (0, 0, 255)
 
     def update_brightness(self, brightness):
         self.brightness = brightness
