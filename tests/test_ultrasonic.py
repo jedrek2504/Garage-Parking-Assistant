@@ -3,11 +3,11 @@ import time
 from rpi_ws281x import PixelStrip, Color
 
 # LED strip configuration:
-LED_COUNT = 30        # Number of LED pixels.
+LED_COUNT = 37        # Number of LED pixels.
 LED_PIN = 18          # GPIO pin connected to the pixels (must support PWM!).
 LED_FREQ_HZ = 800000  # LED signal frequency in hertz (usually 800kHz).
 LED_DMA = 10          # DMA channel to use for generating signal (try 10).
-LED_BRIGHTNESS = 100  # Set to 0 for darkest and 255 for brightest (capped at 100).
+LED_BRIGHTNESS = 20  # Set to 0 for darkest and 255 for brightest (capped at 100).
 LED_INVERT = False    # True to invert the signal (when using NPN transistor level shift).
 LED_CHANNEL = 0
 
@@ -73,9 +73,9 @@ def measure_distance(trig_pin, echo_pin, sensor_name):
 def get_color_for_distance(distance):
     if distance is None:
         return Color(0, 0, 0)  # Off if no reading
-    elif distance < 10:
+    elif distance < 3:
         return Color(255, 0, 0)  # Red
-    elif distance < 20:
+    elif distance < 10:
         return Color(255, 165, 0)  # Orange
     else:
         return Color(0, 255, 0)  # Green
@@ -98,9 +98,9 @@ try:
         # Front Sensor controls LEDs 10-19
         # Right Sensor controls LEDs 20-29
         sensor_to_led = {
-            'left':  {'start': 0,  'end': 10},
-            'front': {'start': 10, 'end': 20},
-            'right': {'start': 20, 'end': 30}
+            'left': {'start': 0, 'end': 11},    # LEDs 0-11
+            'front': {'start': 14, 'end': 22},  # LEDs 14-22
+            'right': {'start': 25, 'end': 37}   # LEDs 25-37
         }
 
         for sensor_name, distance in distances.items():
