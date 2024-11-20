@@ -70,7 +70,7 @@ class AIModule:
         ]
         diff = cv2.absdiff(roi, self.background_roi)
         gray = cv2.cvtColor(diff, cv2.COLOR_BGR2GRAY)
-        _, fg_mask = cv2.threshold(gray, 30, 255, cv2.THRESH_BINARY)
+        _, fg_mask = cv2.threshold(gray, 50, 255, cv2.THRESH_BINARY)  # Increased threshold
         kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
         fg_mask = cv2.morphologyEx(fg_mask, cv2.MORPH_OPEN, kernel, iterations=2)
         fg_mask = cv2.morphologyEx(fg_mask, cv2.MORPH_DILATE, kernel, iterations=1)
@@ -78,7 +78,8 @@ class AIModule:
         contours, _ = cv2.findContours(fg_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         for cnt in contours:
             area = cv2.contourArea(cnt)
-            if area > 500:
+            if area > 1500:  # Increased threshold to 1500 to reduce false positives
+                logger.debug(f"Detected object: area={area}")
                 return True
         return False
 
