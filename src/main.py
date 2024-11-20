@@ -7,7 +7,7 @@ from config import Config
 from mqtt_handler import MqttHandler
 from sensor_manager import SensorManager
 from led_manager import LedManager
-from ai_module import AIModule
+from ai_detection import AIModule
 from camera_stream import run_flask_app
 
 # Configure logging
