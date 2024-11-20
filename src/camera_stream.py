@@ -1,12 +1,12 @@
-# camera_stream.py
+# src/camera_stream.py
 
 from flask import Flask, Response
-from picamera2 import Picamera2
+from shared_camera import SharedCamera
 import cv2
 import logging
 import time
 
-def run_flask_app():
+def run_flask_app(distances):
     # Configure logging for the Flask app to log to console
     logging.basicConfig(
         level=logging.INFO,
@@ -20,15 +20,9 @@ def run_flask_app():
 
     app = Flask(__name__)
 
-    # Initialize Picamera2 outside the generator function
-    picam2 = Picamera2()
-    video_config = picam2.create_video_configuration(
-        main={"size": (640, 480)},  # Set resolution
-        controls={"FrameDurationLimits": (66666, 66666)}  # ~15 FPS
-    )
-    picam2.configure(video_config)
-    picam2.start()
-    logger.info("Camera started.")
+    # Get the shared camera instance
+    picam2 = SharedCamera.get_instance()
+    logger.info("Camera accessed by Flask app.")
 
     def gen_frames():
         try:
@@ -74,5 +68,5 @@ def run_flask_app():
     except Exception as e:
         logger.exception("Exception in Flask app.")
     finally:
-        picam2.stop()
-        logger.info("Camera stopped.")
+        # Do not stop the camera here as it's shared
+        logger.info("Flask app terminated.")

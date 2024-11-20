@@ -1,4 +1,4 @@
-# led.py
+# src/led.py
 
 import board
 import neopixel

@@ -1,4 +1,4 @@
-# sensor.py
+# src/sensor.py
 
 import time
 import RPi.GPIO as GPIO

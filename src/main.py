@@ -1,4 +1,4 @@
-# main.py
+# src/main.py
 
 import time
 import threading
@@ -40,6 +40,12 @@ class GarageParkingAssistant:
 
         self.garage_door_open = False
 
+        # Event to control AI Module operations
+        self.ai_stop_event = threading.Event()
+
+        # Lock to synchronize AI Module state
+        self.ai_lock = threading.Lock()
+
     def update_settings(self, data):
         self.sensor_manager.update_thresholds(data)
         self.led_manager.update_brightness(data.get("brightness", self.led_manager.brightness))
@@ -59,11 +65,30 @@ class GarageParkingAssistant:
 
     def on_ai_detection(self, object_detected):
         if object_detected:
-            logger.info("Object detected by AI analysis. Starting LED blinking.")
+            logger.info("AI detected an obstacle. Initiating LED blinking.")
             self.led_manager.start_blinking()
+
+            # Start a timer for the blinking duration (10 seconds)
+            blink_thread = threading.Thread(target=self.handle_blinking_duration, daemon=True)
+            blink_thread.start()
         else:
-            logger.info("No object detected by AI analysis. Stopping LED blinking.")
+            logger.info("AI no longer detects an obstacle. Stopping LED blinking.")
             self.led_manager.stop_blinking()
+            # Reset LEDs to default after obstacle removal
+            self.led_manager.reset_leds_to_default()
+
+    def handle_blinking_duration(self):
+        # Blink LEDs for 10 seconds
+        blink_duration = 10
+        start_time = time.time()
+        while time.time() - start_time < blink_duration:
+            if not self.parking_procedure_active:
+                return  # Exit if parking procedure is stopped
+            time.sleep(1)
+        
+        # After blinking period, allow AI Module to re-analyze
+        logger.info("Blinking period ended. AI Module will re-analyze the scene.")
+        # No action needed here as AI Module is continuously monitoring
 
     def start_flask_app(self):
         flask_thread = threading.Thread(target=run_flask_app, args=(self.distances,))
@@ -72,22 +97,24 @@ class GarageParkingAssistant:
         logger.info("Flask app started in a separate thread.")
 
     def start_parking_procedure(self):
-        if not self.parking_procedure_active:
-            logger.info("Garage door is open. Starting parking procedure.")
-            self.parking_procedure_active = True
-            self.ai_module.start()
-        else:
-            logger.debug("Parking procedure already active.")
+        with self.ai_lock:
+            if not self.parking_procedure_active:
+                logger.info("Garage door is open. Starting parking procedure.")
+                self.parking_procedure_active = True
+                self.ai_module.start()
+            else:
+                logger.debug("Parking procedure already active.")
 
     def stop_parking_procedure(self):
-        if self.parking_procedure_active:
-            logger.info("Garage door is closed or conditions not met. Stopping parking procedure.")
-            self.parking_procedure_active = False
-            self.ai_module.stop()
-            self.led_manager.stop_blinking()
-            self.led_manager.clear_leds()
-        else:
-            logger.debug("Parking procedure not active.")
+        with self.ai_lock:
+            if self.parking_procedure_active:
+                logger.info("Garage door is closed or conditions not met. Stopping parking procedure.")
+                self.parking_procedure_active = False
+                self.ai_module.stop()
+                self.led_manager.stop_blinking()
+                self.led_manager.clear_leds()
+            else:
+                logger.debug("Parking procedure not active.")
 
     def main_loop(self):
         if self.system_enabled:

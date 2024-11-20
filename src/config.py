@@ -1,4 +1,4 @@
-# config.py
+# src/config.py
 
 class Config:
     RED_DISTANCE_THRESHOLD = {
@@ -22,3 +22,4 @@ class Config:
         "garage_command": "garage/parking/garage_door/command",
         "garage_state": "garage/parking/garage_door/state",
     }
+    BACKGROUND_FRAME_PATH = "background_frame.jpg"  # Added for AI Module

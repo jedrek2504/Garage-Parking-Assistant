@@ -1,4 +1,4 @@
-# ai_detection.py
+# src/ai_detection.py
 
 import cv2
 import threading
@@ -8,14 +8,15 @@ from shared_camera import SharedCamera
 
 logger = logging.getLogger(__name__)
 
-class AIDetection:
-    def __init__(self, background_frame_path, led_manager, stop_event):
-        self.background_frame = cv2.imread(background_frame_path)
+class AIModule:
+    def __init__(self, config, callback):
+        self.config = config
+        self.callback = callback  # Callback to communicate with main loop
+        self.background_frame_path = 'background_frame.jpg'
+        self.background_frame = cv2.imread(self.background_frame_path)
         if self.background_frame is None:
             raise FileNotFoundError("Background frame not found.")
         
-        self.led_manager = led_manager
-        self.stop_event = stop_event
         self.roi_top_left = (50, 10)
         self.roi_bottom_right = (575, 400)
         self.background_roi = self.background_frame[
@@ -23,13 +24,16 @@ class AIDetection:
             self.roi_top_left[0]:self.roi_bottom_right[0],
         ]
         self.thread = None
+        self.stop_event = threading.Event()
 
     def start(self):
         if self.thread and self.thread.is_alive():
-            logger.warning("AI Detection thread already running.")
+            logger.warning("AI Module thread already running.")
         else:
+            self.stop_event.clear()
             self.thread = threading.Thread(target=self._run_detection, daemon=True)
             self.thread.start()
+            logger.info("AI Module started.")
 
     def _run_detection(self):
         camera = SharedCamera.get_instance()
@@ -42,25 +46,22 @@ class AIDetection:
 
             # Analyze frame
             obstacle_detected = self._process_frame(frame)
+            self.callback(obstacle_detected)
+
             if obstacle_detected:
-                logger.info("Obstacle detected. Starting LED blinking.")
-                self.led_manager.start_blinking()
-                
-                # Blink LEDs for 10 seconds
-                start_time = time.time()
-                while time.time() - start_time < 10:
-                    if self.stop_event.is_set():
-                        return
-                    time.sleep(0.1)
-
-                self.led_manager.stop_blinking()
-                logger.info("Reset LEDs for background correction.")
-
-                # Wait briefly to reset LEDs
-                time.sleep(1)
+                logger.info("Obstacle detected. Initiating blink sequence.")
+                # Signal main loop to start blinking
+                # Wait until obstacle is removed
+                while obstacle_detected and not self.stop_event.is_set():
+                    time.sleep(1)  # Adjust the interval as needed
+                    frame = camera.capture_array()
+                    frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+                    frame = cv2.flip(frame, -1)
+                    obstacle_detected = self._process_frame(frame)
+                    self.callback(obstacle_detected)
             else:
-                logger.info("No obstacle detected. Stopping AI detection.")
-                break
+                logger.info("No obstacle detected. AI Module stopping.")
+                break  # Exit the loop if no obstacle detected
 
     def _process_frame(self, frame):
         roi = frame[
@@ -85,4 +86,4 @@ class AIDetection:
         if self.thread and self.thread.is_alive():
             self.stop_event.set()
             self.thread.join()
-        logger.info("AI Detection stopped.")
+            logger.info("AI Module stopped.")

@@ -1,4 +1,4 @@
-# led_manager.py
+# src/led_manager.py
 
 import time
 import threading
@@ -15,7 +15,8 @@ class LedManager:
         self.blinking = False
         self.last_blink_time = 0
         self.blink_state = False
-        self.blink_color = (0, 0, 255)
+        self.blink_color = (0, 0, 255)  # Blue for blinking indication
+        self.default_state = {}
 
     def update_brightness(self, brightness):
         self.brightness = brightness
@@ -81,6 +82,12 @@ class LedManager:
                 else:
                     # Turn off the LED segment if distance is None
                     set_led_segment_color(sensor_name, 0, 0, 0)
+
+    def reset_leds_to_default(self):
+        # Optionally, set LEDs to a default state after blinking
+        # For example, turn them off or set to a specific color
+        self.clear_leds()
+        logger.info("LEDs reset to default state.")
 
     def clear_leds(self):
         clear_leds()
