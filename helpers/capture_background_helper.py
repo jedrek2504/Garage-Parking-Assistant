@@ -22,7 +22,7 @@ def test_all_segments_green():
 
         # Keep the LEDs on for 5 seconds
         print("LED segments turned green with 20/255 brightness. Waiting for 5 seconds...")
-        time.sleep(30)
+        time.sleep(10)
 
     finally:
         # Clear all LEDs
