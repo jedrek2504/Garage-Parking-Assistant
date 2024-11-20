@@ -15,7 +15,7 @@ fi
 
 # Flip the image using ffmpeg
 echo "Flipping the image..."
-ffmpeg -i background_frame_temp.jpg -vf "vflip" background_frame.jpg -y
+ffmpeg -i background_frame_temp.jpg -vf "hflip,vflip" background_frame.jpg -y
 
 # Remove the temporary image
 echo "Cleaning up temporary files..."
