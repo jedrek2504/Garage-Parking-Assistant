@@ -26,6 +26,13 @@ mqtt:
       value_template: "{{ value | float | round(2) }}"
       unique_id: "sensor_parking_distance_right"
 
+    - name: "AI Obstacle Detection"
+      state_topic: "garage/parking/ai_detection"
+      value_template: "{{ value }}"
+      icon: "mdi:car-brake-alert"
+      unique_id: "sensor_ai_obstacle_detection"
+      
+# Cover
   cover:
     - name: "Garage Door"
       command_topic: "garage/parking/garage_door/command"

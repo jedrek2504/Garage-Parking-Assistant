@@ -65,11 +65,13 @@ class GarageParkingAssistant:
             logger.info("AI detected an obstacle. Initiating LED blinking.")
             self.led_manager.start_blinking()
 
-            # Start a timer for the blinking duration (10 seconds)
+            self.mqtt_handler.publish_ai_detection(True)
+
             blink_thread = threading.Thread(target=self.handle_blinking_duration, daemon=True)
             blink_thread.start()
         else:
             logger.info("AI detected no obstacle.")
+            self.mqtt_handler.publish_ai_detection(False)
 
     def handle_blinking_duration(self):
             # Blink LEDs for 10 seconds

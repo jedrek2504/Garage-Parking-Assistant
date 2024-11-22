@@ -54,6 +54,12 @@ class MqttHandler:
         self.client.publish(self.config.MQTT_TOPICS["garage_state"], state)
         logger.debug(f"Published garage door state: {state}")
 
+    def publish_ai_detection(self, obstacle_detected):
+        topic = self.config.MQTT_TOPICS["ai_detection"]
+        payload = "DETECTED" if obstacle_detected else "CLEAR"
+        self.client.publish(topic, payload)
+        logger.debug(f"Published AI detection: {payload}")
+
     def request_settings(self):
         logger.info("Requesting current settings from Home Assistant...")
         self.client.publish(self.config.MQTT_TOPICS["settings_get"], "")
