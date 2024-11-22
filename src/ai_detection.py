@@ -38,7 +38,9 @@ class AIModule:
     def _run_detection(self):
         camera = SharedCamera.get_instance()
         
-        while not self.stop_event.is_set():
+        if not self.stop_event.is_set():
+            # Ensure LEDs are in default state before capturing frame
+            time.sleep(0.1)  # Short delay to ensure LEDs are reset
             # Capture frame
             frame = camera.capture_array()
             frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
@@ -47,21 +49,9 @@ class AIModule:
             # Analyze frame
             obstacle_detected = self._process_frame(frame)
             self.callback(obstacle_detected)
-
-            if obstacle_detected:
-                logger.info("Obstacle detected. Initiating blink sequence.")
-                # Signal main loop to start blinking
-                # Wait until obstacle is removed
-                while obstacle_detected and not self.stop_event.is_set():
-                    time.sleep(1)  # Adjust the interval as needed
-                    frame = camera.capture_array()
-                    frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
-                    frame = cv2.flip(frame, -1)
-                    obstacle_detected = self._process_frame(frame)
-                    self.callback(obstacle_detected)
-            else:
-                logger.info("No obstacle detected. AI Module stopping.")
-                break  # Exit the loop if no obstacle detected
+        
+        # AI module stops itself after one detection
+        self.stop()
 
     def _process_frame(self, frame):
         roi = frame[
@@ -70,7 +60,7 @@ class AIModule:
         ]
         diff = cv2.absdiff(roi, self.background_roi)
         gray = cv2.cvtColor(diff, cv2.COLOR_BGR2GRAY)
-        _, fg_mask = cv2.threshold(gray, 50, 255, cv2.THRESH_BINARY)  # Increased threshold
+        _, fg_mask = cv2.threshold(gray, 50, 255, cv2.THRESH_BINARY)  # Adjust threshold if needed
         kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
         fg_mask = cv2.morphologyEx(fg_mask, cv2.MORPH_OPEN, kernel, iterations=2)
         fg_mask = cv2.morphologyEx(fg_mask, cv2.MORPH_DILATE, kernel, iterations=1)
@@ -78,7 +68,7 @@ class AIModule:
         contours, _ = cv2.findContours(fg_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         for cnt in contours:
             area = cv2.contourArea(cnt)
-            if area > 1500:  # Increased threshold to 1500 to reduce false positives
+            if area > 1500:  # Adjust threshold to reduce false positives
                 logger.debug(f"Detected object: area={area}")
                 return True
         return False
@@ -86,5 +76,8 @@ class AIModule:
     def stop(self):
         if self.thread and self.thread.is_alive():
             self.stop_event.set()
-            self.thread.join()
+            if threading.current_thread() != self.thread:
+                self.thread.join()
             logger.info("AI Module stopped.")
+        else:
+            logger.debug("AI Module is not running.")

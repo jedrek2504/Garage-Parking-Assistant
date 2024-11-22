@@ -40,9 +40,6 @@ class GarageParkingAssistant:
 
         self.garage_door_open = False
 
-        # Event to control AI Module operations
-        self.ai_stop_event = threading.Event()
-
         # Lock to synchronize AI Module state
         self.ai_lock = threading.Lock()
 
@@ -67,28 +64,36 @@ class GarageParkingAssistant:
         if object_detected:
             logger.info("AI detected an obstacle. Initiating LED blinking.")
             self.led_manager.start_blinking()
+            # AI module should not run during blinking
+            self.ai_module.stop()
 
             # Start a timer for the blinking duration (10 seconds)
             blink_thread = threading.Thread(target=self.handle_blinking_duration, daemon=True)
             blink_thread.start()
         else:
-            logger.info("AI no longer detects an obstacle. Stopping LED blinking.")
-            self.led_manager.stop_blinking()
-            # Reset LEDs to default after obstacle removal
-            self.led_manager.reset_leds_to_default()
+            logger.info("AI detected no obstacle. Stopping AI module.")
+            # Ensure AI module is stopped
+            self.ai_module.stop()
 
     def handle_blinking_duration(self):
-        # Blink LEDs for 10 seconds
-        blink_duration = 10
-        start_time = time.time()
-        while time.time() - start_time < blink_duration:
-            if not self.parking_procedure_active:
-                return  # Exit if parking procedure is stopped
-            time.sleep(1)
-        
-        # After blinking period, allow AI Module to re-analyze
-        logger.info("Blinking period ended. AI Module will re-analyze the scene.")
-        # No action needed here as AI Module is continuously monitoring
+            # Blink LEDs for 10 seconds
+            blink_duration = 10
+            start_time = time.time()
+            while time.time() - start_time < blink_duration:
+                if not self.parking_procedure_active:
+                    return  # Exit if parking procedure is stopped
+                time.sleep(1)
+            
+            # After blinking period, allow AI Module to re-analyze
+            logger.info("Blinking period ended. AI Module will re-analyze the scene.")
+            self.led_manager.stop_blinking()
+            # Update LEDs based on distances
+            self.led_manager.reset_leds_to_default(self.distances)
+            # Wait a short delay to ensure LEDs have updated
+            time.sleep(0.5)  # Adjust if necessary
+            # Restart the AI module to analyze again
+            if self.parking_procedure_active:
+                self.ai_module.start()
 
     def start_flask_app(self):
         flask_thread = threading.Thread(target=run_flask_app, args=(self.distances,))

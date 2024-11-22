@@ -31,7 +31,7 @@ def clear_leds():
     except Exception as e:
         logger.exception("Failed to clear LEDs.")
 
-def set_led_segment_color(segment_name, r, g, b, brightness=255):
+def set_led_segment_color(segment_name, r, g, b, brightness=255, update_immediately=False):
     """Set color and brightness for a specific LED segment."""
     try:
         adjusted_brightness = brightness / 255  # Normalize brightness to 0.0 - 1.0
@@ -42,7 +42,8 @@ def set_led_segment_color(segment_name, r, g, b, brightness=255):
                 int(g * adjusted_brightness),
                 int(b * adjusted_brightness),
             )
-        pixels.show()
+        if update_immediately:
+            pixels.show()
         logger.debug(f"Set {segment_name} LEDs to color RGB({r}, {g}, {b}) with brightness {brightness}.")
     except Exception as e:
         logger.exception(f"Failed to set LED color for {segment_name} segment.")
