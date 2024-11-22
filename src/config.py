@@ -21,6 +21,7 @@ class Config:
         "settings_get": "garage/parking/settings/get",
         "garage_command": "garage/parking/garage_door/command",
         "garage_state": "garage/parking/garage_door/state",
-        "ai_detection": "garage/parking/ai_detection"
+        "ai_detection": "garage/parking/ai_detection",
+        "process_state": "garage/parking/process_state"
     }
     BACKGROUND_FRAME_PATH = "background_frame.jpg"

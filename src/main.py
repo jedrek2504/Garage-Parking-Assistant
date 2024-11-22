@@ -43,6 +43,9 @@ class GarageParkingAssistant:
         # Lock to synchronize AI Module state
         self.ai_lock = threading.Lock()
 
+        # Variable to keep track of the current process
+        self.process = None  # "parking", "exiting", or None
+
     def update_settings(self, data):
         self.sensor_manager.update_thresholds(data)
         self.led_manager.update_brightness(data.get("brightness", self.led_manager.brightness))
@@ -60,64 +63,102 @@ class GarageParkingAssistant:
         self.mqtt_handler.publish_garage_state(self.garage_door_open)
         logger.info(f"Garage door state updated to: {'OPEN' if self.garage_door_open else 'CLOSED'}")
 
+    def start_parking_procedure(self):
+        with self.ai_lock:
+            if not self.parking_procedure_active:
+                logger.info("Garage door is open. Starting parking procedure.")
+
+                # Determine the process based on sensor readings
+                self.sensor_manager.measure_distances(self.distances)
+
+                # Check sensor readings to determine if the car is present
+                close_object_detected = self.is_close_object_detected()
+
+                if close_object_detected:
+                    self.process = "exiting"
+                    logger.info("Process identified: Exiting the garage.")
+                    # Publish process to MQTT
+                    self.mqtt_handler.publish_process(self.process)
+                    # Do not start the AI module
+                else:
+                    self.process = "parking"
+                    logger.info("Process identified: Parking procedure.")
+                    # Publish process to MQTT
+                    self.mqtt_handler.publish_process(self.process)
+                    # Start AI detection to check for obstacles
+                    self.ai_module.start()
+
+                self.parking_procedure_active = True
+            else:
+                logger.debug("Parking procedure already active.")
+
+    def is_close_object_detected(self):
+        with self.distances['lock']:
+            for sensor_name in ['front', 'left', 'right']:
+                distance = self.distances.get(sensor_name)
+                if distance is None:
+                    continue
+                orange_threshold = self.sensor_manager.orange_distance_threshold[sensor_name]
+                if distance <= orange_threshold:
+                    logger.debug(f"Close object detected by {sensor_name} sensor: {distance} cm")
+                    return True
+        return False
+
+    def stop_parking_procedure(self):
+        with self.ai_lock:
+            if self.parking_procedure_active:
+                logger.info("Garage door is closed. Stopping parking procedure.")
+                self.parking_procedure_active = False
+                self.process = None  # Reset the process state
+                self.mqtt_handler.publish_process("idle")  # Publish idle state
+
+                self.ai_module.stop()
+                self.led_manager.stop_blinking()
+                self.led_manager.clear_leds()
+            else:
+                logger.debug("Parking procedure not active.")
+
     def on_ai_detection(self, object_detected):
         if object_detected:
             logger.info("AI detected an obstacle. Initiating LED blinking.")
             self.led_manager.start_blinking()
 
+            # Publish AI detection event
             self.mqtt_handler.publish_ai_detection(True)
 
+            # Start a timer for the blinking duration (10 seconds)
             blink_thread = threading.Thread(target=self.handle_blinking_duration, daemon=True)
             blink_thread.start()
         else:
             logger.info("AI detected no obstacle.")
+            # Publish AI detection event
             self.mqtt_handler.publish_ai_detection(False)
 
     def handle_blinking_duration(self):
-            # Blink LEDs for 10 seconds
-            blink_duration = 10
-            start_time = time.time()
-            while time.time() - start_time < blink_duration:
-                if not self.parking_procedure_active:
-                    return  # Exit if parking procedure is stopped
-                time.sleep(1)
-            
-            # After blinking period, allow AI Module to re-analyze
-            logger.info("Blinking period ended. AI Module will re-analyze the scene.")
-            self.led_manager.stop_blinking()
-            # Update LEDs based on distances
-            self.led_manager.reset_leds_to_default(self.distances)
-            # Wait a short delay to ensure LEDs have updated
-            time.sleep(0.5)  # Adjust if necessary
-            # Restart the AI module to analyze again
-            if self.parking_procedure_active:
-                self.ai_module.start()
+        # Blink LEDs for 10 seconds
+        blink_duration = 10
+        start_time = time.time()
+        while time.time() - start_time < blink_duration:
+            if not self.parking_procedure_active:
+                return  # Exit if parking procedure is stopped
+            time.sleep(1)
+
+        # After blinking period, allow AI Module to re-analyze
+        logger.info("Blinking period ended. AI Module will re-analyze the scene.")
+        self.led_manager.stop_blinking()
+        # Update LEDs based on distances
+        self.led_manager.reset_leds_to_default(self.distances)
+        # Wait a short delay to ensure LEDs have updated
+        time.sleep(0.5)  # Adjust if necessary
+        # Restart the AI module to analyze again
+        if self.parking_procedure_active:
+            self.ai_module.start()
 
     def start_flask_app(self):
         flask_thread = threading.Thread(target=run_flask_app, args=(self.distances,))
         flask_thread.daemon = True
         flask_thread.start()
         logger.info("Flask app started in a separate thread.")
-
-    def start_parking_procedure(self):
-        with self.ai_lock:
-            if not self.parking_procedure_active:
-                logger.info("Garage door is open. Starting parking procedure.")
-                self.parking_procedure_active = True
-                self.ai_module.start()
-            else:
-                logger.debug("Parking procedure already active.")
-
-    def stop_parking_procedure(self):
-        with self.ai_lock:
-            if self.parking_procedure_active:
-                logger.info("Garage door is closed or conditions not met. Stopping parking procedure.")
-                self.parking_procedure_active = False
-                self.ai_module.stop()
-                self.led_manager.stop_blinking()
-                self.led_manager.clear_leds()
-            else:
-                logger.debug("Parking procedure not active.")
 
     def main_loop(self):
         if self.system_enabled:

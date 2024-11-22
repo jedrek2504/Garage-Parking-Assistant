@@ -31,6 +31,11 @@ mqtt:
       value_template: "{{ value }}"
       icon: "mdi:car-brake-alert"
       unique_id: "sensor_ai_obstacle_detection"
+    
+    - name: "Garage Process State"
+      state_topic: "garage/parking/process_state"
+      icon: "mdi:garage"
+      unique_id: "sensor_garage_process_state"
       
 # Cover
   cover:

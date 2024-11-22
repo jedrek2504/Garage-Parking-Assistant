@@ -60,6 +60,12 @@ class MqttHandler:
         self.client.publish(topic, payload)
         logger.debug(f"Published AI detection: {payload}")
 
+    def publish_process(self, process):
+        topic = self.config.MQTT_TOPICS["process_state"]
+        payload = process
+        self.client.publish(topic, payload)
+        logger.debug(f"Published process state: {payload}")
+
     def request_settings(self):
         logger.info("Requesting current settings from Home Assistant...")
         self.client.publish(self.config.MQTT_TOPICS["settings_get"], "")
