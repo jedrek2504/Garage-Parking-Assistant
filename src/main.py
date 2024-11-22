@@ -97,12 +97,16 @@ class GarageParkingAssistant:
             for sensor_name in ['front', 'left', 'right']:
                 distance = self.distances.get(sensor_name)
                 if distance is None:
-                    continue
+                    logger.warning(f"{sensor_name} sensor reading is None. Assuming object not close.")
+                    return False  # If any sensor reading is None, we cannot proceed
                 orange_threshold = self.sensor_manager.orange_distance_threshold[sensor_name]
-                if distance <= orange_threshold:
-                    logger.debug(f"Close object detected by {sensor_name} sensor: {distance} cm")
-                    return True
-        return False
+                if distance > orange_threshold:
+                    logger.info(f"{sensor_name} sensor indicates safe distance: {distance} cm")
+                    return False  # If any sensor is not within danger distance, return False
+            # If we get here, all sensors have distance <= orange_threshold
+            logger.info("All sensors detect close objects.")
+            return True
+
 
     def stop_parking_procedure(self):
         with self.ai_lock:
