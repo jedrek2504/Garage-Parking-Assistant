@@ -1,4 +1,4 @@
-# sensor_menager.py
+# src/sensor_manager.py
 
 import time
 import logging

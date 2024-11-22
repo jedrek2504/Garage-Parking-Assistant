@@ -26,6 +26,18 @@ mqtt:
       value_template: "{{ value | float | round(2) }}"
       unique_id: "sensor_parking_distance_right"
 
+    - name: "AI Obstacle Detection"
+      state_topic: "garage/parking/ai_detection"
+      value_template: "{{ value }}"
+      icon: "mdi:car-brake-alert"
+      unique_id: "sensor_ai_obstacle_detection"
+    
+    - name: "Garage Process State"
+      state_topic: "garage/parking/process_state"
+      icon: "mdi:garage"
+      unique_id: "sensor_garage_process_state"
+      
+# Cover
   cover:
     - name: "Garage Door"
       command_topic: "garage/parking/garage_door/command"
@@ -43,7 +55,7 @@ mqtt:
 input_number:
   red_distance_threshold_front:
     name: "Red Distance Threshold Front"
-    initial: 10
+    initial: 3
     min: 1
     max: 100
     step: 1
@@ -52,7 +64,7 @@ input_number:
 
   orange_distance_threshold_front:
     name: "Orange Distance Threshold Front"
-    initial: 20
+    initial: 10
     min: 1
     max: 100
     step: 1
@@ -61,7 +73,7 @@ input_number:
 
   red_distance_threshold_left:
     name: "Red Distance Threshold Left"
-    initial: 10
+    initial: 3
     min: 1
     max: 100
     step: 1
@@ -70,7 +82,7 @@ input_number:
 
   orange_distance_threshold_left:
     name: "Orange Distance Threshold Left"
-    initial: 20
+    initial: 10
     min: 1
     max: 100
     step: 1
@@ -79,7 +91,7 @@ input_number:
 
   red_distance_threshold_right:
     name: "Red Distance Threshold Right"
-    initial: 10
+    initial: 3
     min: 1
     max: 100
     step: 1
@@ -88,7 +100,7 @@ input_number:
 
   orange_distance_threshold_right:
     name: "Orange Distance Threshold Right"
-    initial: 20
+    initial: 10
     min: 1
     max: 100
     step: 1

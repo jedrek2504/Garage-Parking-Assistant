@@ -1,15 +1,15 @@
-# config.py
+# src/config.py
 
 class Config:
     RED_DISTANCE_THRESHOLD = {
+        'front': 3,
+        'left': 3,
+        'right': 3
+    }
+    ORANGE_DISTANCE_THRESHOLD = {
         'front': 10,
         'left': 10,
         'right': 10
-    }
-    ORANGE_DISTANCE_THRESHOLD = {
-        'front': 20,
-        'left': 20,
-        'right': 20
     }
     BRIGHTNESS = 20
     SYSTEM_ENABLED = True
@@ -21,4 +21,7 @@ class Config:
         "settings_get": "garage/parking/settings/get",
         "garage_command": "garage/parking/garage_door/command",
         "garage_state": "garage/parking/garage_door/state",
+        "ai_detection": "garage/parking/ai_detection",
+        "process_state": "garage/parking/process_state"
     }
+    BACKGROUND_FRAME_PATH = "background_frame.jpg"
