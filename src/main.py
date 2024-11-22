@@ -64,16 +64,12 @@ class GarageParkingAssistant:
         if object_detected:
             logger.info("AI detected an obstacle. Initiating LED blinking.")
             self.led_manager.start_blinking()
-            # AI module should not run during blinking
-            self.ai_module.stop()
 
             # Start a timer for the blinking duration (10 seconds)
             blink_thread = threading.Thread(target=self.handle_blinking_duration, daemon=True)
             blink_thread.start()
         else:
-            logger.info("AI detected no obstacle. Stopping AI module.")
-            # Ensure AI module is stopped
-            self.ai_module.stop()
+            logger.info("AI detected no obstacle.")
 
     def handle_blinking_duration(self):
             # Blink LEDs for 10 seconds
