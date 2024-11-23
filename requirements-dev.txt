@@ -1,0 +1,4 @@
+numpy
+rpi_ws281x
+pytest
+pytest-mock

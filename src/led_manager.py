@@ -1,7 +1,6 @@
 # src/led_manager.py
 
 import time
-import threading
 import logging
 from led import set_led_segment_color, clear_leds, pixels
 
