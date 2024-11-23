@@ -187,5 +187,7 @@ homeassistant-config/secrets.yaml
 # Plik z poufnymi danymi
 homeassistant-config/custom_components/
 homeassistant-config/www/
+
+# Pliki video i zdjęcia
 *.jpg
 *.mp4
