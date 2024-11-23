@@ -18,7 +18,7 @@ def test_all_segments_green():
     try:
         # Set each segment to green
         for segment in ['left', 'front', 'right']:
-            set_led_segment_color(segment, *GREEN_COLOR, brightness=BRIGHTNESS)
+            set_led_segment_color(segment, *GREEN_COLOR, brightness=BRIGHTNESS, update_immediately=True)
 
         # Keep the LEDs on for 5 seconds
         print("LED segments turned green with 20/255 brightness. Waiting for 5 seconds...")

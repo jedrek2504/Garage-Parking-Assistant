@@ -1,49 +1,67 @@
 # automations.yaml
 
-- alias: "Send Distance Thresholds and Brightness to Raspberry Pi"
+- alias: Send Distance Thresholds and Brightness to Raspberry Pi
   trigger:
-    - platform: state
-      entity_id:
-        - input_number.red_distance_threshold_front
-        - input_number.orange_distance_threshold_front
-        - input_number.red_distance_threshold_left
-        - input_number.orange_distance_threshold_left
-        - input_number.red_distance_threshold_right
-        - input_number.orange_distance_threshold_right
-        - input_number.led_brightness
-        - input_boolean.parking_system_enabled
+  - platform: state
+    entity_id:
+    - input_number.red_distance_threshold_front
+    - input_number.orange_distance_threshold_front
+    - input_number.red_distance_threshold_left
+    - input_number.orange_distance_threshold_left
+    - input_number.red_distance_threshold_right
+    - input_number.orange_distance_threshold_right
+    - input_number.led_brightness
+    - input_boolean.parking_system_enabled
   action:
-    - service: mqtt.publish
-      data:
-        topic: "garage/parking/settings"
-        payload: >
-          {
-            "red_distance_threshold_front": {{ states('input_number.red_distance_threshold_front') | int }},
-            "orange_distance_threshold_front": {{ states('input_number.orange_distance_threshold_front') | int }},
-            "red_distance_threshold_left": {{ states('input_number.red_distance_threshold_left') | int }},
-            "orange_distance_threshold_left": {{ states('input_number.orange_distance_threshold_left') | int }},
-            "red_distance_threshold_right": {{ states('input_number.red_distance_threshold_right') | int }},
-            "orange_distance_threshold_right": {{ states('input_number.orange_distance_threshold_right') | int }},
-            "brightness": {{ states('input_number.led_brightness') | int }},
-            "enabled": {{ (states('input_boolean.parking_system_enabled') == 'on') | string | lower }}
-          }
-
-- alias: "Send Settings on Request"
+  - service: mqtt.publish
+    data:
+      topic: garage/parking/settings
+      payload: "{\n  \"red_distance_threshold_front\": {{ states('input_number.red_distance_threshold_front')
+        | int }},\n  \"orange_distance_threshold_front\": {{ states('input_number.orange_distance_threshold_front')
+        | int }},\n  \"red_distance_threshold_left\": {{ states('input_number.red_distance_threshold_left')
+        | int }},\n  \"orange_distance_threshold_left\": {{ states('input_number.orange_distance_threshold_left')
+        | int }},\n  \"red_distance_threshold_right\": {{ states('input_number.red_distance_threshold_right')
+        | int }},\n  \"orange_distance_threshold_right\": {{ states('input_number.orange_distance_threshold_right')
+        | int }},\n  \"brightness\": {{ states('input_number.led_brightness') | int
+        }},\n  \"enabled\": {{ (states('input_boolean.parking_system_enabled') ==
+        'on') | string | lower }}\n}\n"
+  id: d603fe578d9a470ca49aefec4f8ffcee
+- alias: Send Settings on Request
   trigger:
-    - platform: mqtt
-      topic: "garage/parking/settings/get"
+  - platform: mqtt
+    topic: garage/parking/settings/get
   action:
-    - service: mqtt.publish
-      data:
-        topic: "garage/parking/settings"
-        payload: >
-          {
-            "red_distance_threshold_front": {{ states('input_number.red_distance_threshold_front') | int }},
-            "orange_distance_threshold_front": {{ states('input_number.orange_distance_threshold_front') | int }},
-            "red_distance_threshold_left": {{ states('input_number.red_distance_threshold_left') | int }},
-            "orange_distance_threshold_left": {{ states('input_number.orange_distance_threshold_left') | int }},
-            "red_distance_threshold_right": {{ states('input_number.red_distance_threshold_right') | int }},
-            "orange_distance_threshold_right": {{ states('input_number.orange_distance_threshold_right') | int }},
-            "brightness": {{ states('input_number.led_brightness') | int }},
-            "enabled": {{ (states('input_boolean.parking_system_enabled') == 'on') | string | lower }}
-          }
+  - service: mqtt.publish
+    data:
+      topic: garage/parking/settings
+      payload: "{\n  \"red_distance_threshold_front\": {{ states('input_number.red_distance_threshold_front')
+        | int }},\n  \"orange_distance_threshold_front\": {{ states('input_number.orange_distance_threshold_front')
+        | int }},\n  \"red_distance_threshold_left\": {{ states('input_number.red_distance_threshold_left')
+        | int }},\n  \"orange_distance_threshold_left\": {{ states('input_number.orange_distance_threshold_left')
+        | int }},\n  \"red_distance_threshold_right\": {{ states('input_number.red_distance_threshold_right')
+        | int }},\n  \"orange_distance_threshold_right\": {{ states('input_number.orange_distance_threshold_right')
+        | int }},\n  \"brightness\": {{ states('input_number.led_brightness') | int
+        }},\n  \"enabled\": {{ (states('input_boolean.parking_system_enabled') ==
+        'on') | string | lower }}\n}\n"
+  id: 3ec22bf892bd475d860e041eaf960dfc
+- id: '1732363036304'
+  alias: Notify if Garage Door is Open When User is Away
+  description: ''
+  triggers:
+  - device_id: 4c7adc8f62239db91beb1d495600d4ff
+    domain: device_tracker
+    entity_id: 0fc50e9aad47406748f94cc4ab059ff7
+    type: leaves
+    trigger: device
+    zone: zone.home
+  conditions:
+  - condition: state
+    entity_id: cover.garage_door
+    state: open
+  actions:
+  - action: notify.mobile_app_iphone_jedrzej
+    metadata: {}
+    data:
+      title: 'ALARM: Otwarta wiata garażowa'
+      message: System wykrył, że znajdujesz się poza domem a wiata garażowa jest otwarta.
+  mode: single
