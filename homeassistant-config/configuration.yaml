@@ -123,5 +123,9 @@ input_boolean:
     initial: true
     icon: "mdi:garage"
 
+  user_is_home:
+    name: "User is Home"
+    initial: on
+
 # Include Automations from a Separate File
 automation: !include automations.yaml

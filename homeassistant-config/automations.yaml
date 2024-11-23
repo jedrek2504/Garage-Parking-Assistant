@@ -47,21 +47,18 @@
 - id: '1732363036304'
   alias: Notify if Garage Door is Open When User is Away
   description: ''
-  triggers:
-  - device_id: 4c7adc8f62239db91beb1d495600d4ff
-    domain: device_tracker
-    entity_id: 0fc50e9aad47406748f94cc4ab059ff7
-    type: leaves
-    trigger: device
-    zone: zone.home
-  conditions:
-  - condition: state
-    entity_id: cover.garage_door
-    state: open
-  actions:
-  - action: notify.mobile_app_iphone_jedrzej
-    metadata: {}
-    data:
-      title: 'ALARM: Otwarta wiata garażowa'
-      message: System wykrył, że znajdujesz się poza domem a wiata garażowa jest otwarta.
+  trigger:
+    - platform: state
+      entity_id: input_boolean.user_is_home
+      from: 'on'
+      to: 'off'
+  condition:
+    - condition: state
+      entity_id: cover.garage_door
+      state: 'open'
+  action:
+    - service: notify.mobile_app_iphone_jedrzej
+      data:
+        title: 'ALARM: Otwarta wiata garażowa'
+        message: 'System wykrył, że znajdujesz się poza domem, a wiata garażowa jest otwarta.'
   mode: single
