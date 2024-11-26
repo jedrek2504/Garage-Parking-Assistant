@@ -39,10 +39,10 @@ class AIModule:
     def _majority_vote(self, detection_results):
         positive_detections = sum(detection_results)
         if positive_detections > len(detection_results) / 2:
-            logger.info(f"Object detected in majority of frames ({positive_detections}/{len(detection_results)}).")
+            logger.debug(f"Object detected in majority of frames ({positive_detections}/{len(detection_results)}).")
             return True
         else:
-            logger.info(f"No object detected in majority of frames ({positive_detections}/{len(detection_results)}).")
+            logger.debug(f"No object detected in majority of frames ({positive_detections}/{len(detection_results)}).")
             return False
 
     def _run_detection(self):
@@ -65,7 +65,7 @@ class AIModule:
                 detection_results.append(obstacle_detected)
 
                 # Short delay between frames
-                time.sleep(0.1)  # Adjust delay as needed
+                time.sleep(0.2)
 
             # Determine final result based on majority vote
             object_present = self._majority_vote(detection_results)
@@ -89,21 +89,21 @@ class AIModule:
         # Find contours
         contours, _ = cv2.findContours(fg_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         
-        # Draw contours on a copy of the ROI for visualization
-        roi_with_contours = roi.copy()
-        cv2.drawContours(roi_with_contours, contours, -1, (0, 255, 0), 2)
-
+        # --- Commented Out Debug Image Saving ---
+        # roi_with_contours = roi.copy()
+        # cv2.drawContours(roi_with_contours, contours, -1, (0, 255, 0), 2)
         # Save images for debugging
-        debug_dir = 'debug_images'
-        os.makedirs(debug_dir, exist_ok=True)
-        frame_number = self.frame_save_count
-        self.frame_save_count += 1
+        # debug_dir = 'debug_images'
+        # os.makedirs(debug_dir, exist_ok=True)
+        # frame_number = self.frame_save_count
+        # self.frame_save_count += 1
 
-        cv2.imwrite(os.path.join(debug_dir, f'frame_{frame_number}_index_{frame_index}.jpg'), frame)
-        cv2.imwrite(os.path.join(debug_dir, f'roi_{frame_number}_index_{frame_index}.jpg'), roi)
-        cv2.imwrite(os.path.join(debug_dir, f'diff_{frame_number}_index_{frame_index}.jpg'), diff)
-        cv2.imwrite(os.path.join(debug_dir, f'fg_mask_{frame_number}_index_{frame_index}.jpg'), fg_mask)
-        cv2.imwrite(os.path.join(debug_dir, f'roi_contours_{frame_number}_index_{frame_index}.jpg'), roi_with_contours)
+        # cv2.imwrite(os.path.join(debug_dir, f'frame_{frame_number}_index_{frame_index}.jpg'), frame)
+        # cv2.imwrite(os.path.join(debug_dir, f'roi_{frame_number}_index_{frame_index}.jpg'), roi)
+        # cv2.imwrite(os.path.join(debug_dir, f'diff_{frame_number}_index_{frame_index}.jpg'), diff)
+        # cv2.imwrite(os.path.join(debug_dir, f'fg_mask_{frame_number}_index_{frame_index}.jpg'), fg_mask)
+        # cv2.imwrite(os.path.join(debug_dir, f'roi_contours_{frame_number}_index_{frame_index}.jpg'), roi_with_contours)
+        # --- End of Commented Out Section ---
 
         # Check for significant contours
         for cnt in contours:
