@@ -7,8 +7,8 @@ TEST_FRAMES_DIR = "test_frames"
 OUTPUT_FRAMES_DIR = "output_frames"
 
 # Constants
-ROI_TOP_LEFT = (50, 10)
-ROI_BOTTOM_RIGHT = (575, 400)
+ROI_TOP_LEFT = (110, 60)
+ROI_BOTTOM_RIGHT = (550, 470)
 
 # Load background frame for analysis
 BACKGROUND_FRAME_PATH = "background_frame.jpg"

@@ -4,8 +4,8 @@ import cv2
 import threading
 import logging
 import time
-from shared_camera import SharedCamera
 import os
+from shared_camera import SharedCamera
 
 logger = logging.getLogger(__name__)
 
@@ -18,8 +18,8 @@ class AIModule:
         if self.background_frame is None:
             raise FileNotFoundError("Background frame not found.")
         self.frame_save_count = 0
-        self.roi_top_left = (50, 10)
-        self.roi_bottom_right = (575, 400)
+        self.roi_top_left = (110, 60)
+        self.roi_bottom_right = (550, 470)
         self.background_roi = self.background_frame[
             self.roi_top_left[1]:self.roi_bottom_right[1],
             self.roi_top_left[0]:self.roi_bottom_right[0],
@@ -35,22 +35,42 @@ class AIModule:
             self.thread = threading.Thread(target=self._run_detection, daemon=True)
             self.thread.start()
             logger.info("AI Module started.")
+            
+    def _majority_vote(self, detection_results):
+        positive_detections = sum(detection_results)
+        if positive_detections > len(detection_results) / 2:
+            logger.info(f"Object detected in majority of frames ({positive_detections}/{len(detection_results)}).")
+            return True
+        else:
+            logger.info(f"No object detected in majority of frames ({positive_detections}/{len(detection_results)}).")
+            return False
 
     def _run_detection(self):
         camera = SharedCamera.get_instance()
-        
-        if not self.stop_event.is_set():
-            # Ensure LEDs are in default state before capturing frame
-            time.sleep(0.1)  # Short delay to ensure LEDs are reset
-            # Capture frame
-            frame = camera.capture_array()
-            frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
-            frame = cv2.flip(frame, -1)
+        frame_count = 3  # Number of frames to process
+        detection_results = []
 
-            # Analyze frame
-            obstacle_detected = self._process_frame(frame)
-            self.callback(obstacle_detected)
-        
+        if not self.stop_event.is_set():
+            # Ensure LEDs are in default state before capturing frames
+            time.sleep(0.1)  # Short delay to ensure LEDs are reset
+
+            for i in range(frame_count):
+                # Capture frame
+                frame = camera.capture_array()
+                frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+                frame = cv2.flip(frame, -1)
+
+                # Analyze frame
+                obstacle_detected = self._process_frame(frame, frame_index=i)
+                detection_results.append(obstacle_detected)
+
+                # Short delay between frames
+                time.sleep(0.1)  # Adjust delay as needed
+
+            # Determine final result based on majority vote
+            object_present = self._majority_vote(detection_results)
+            self.callback(object_present)
+
         # AI module stops itself after one detection
         self.stop()
 
@@ -79,11 +99,11 @@ class AIModule:
         frame_number = self.frame_save_count
         self.frame_save_count += 1
 
-        cv2.imwrite(os.path.join(debug_dir, f'frame_{frame_number}.jpg'), frame)
-        cv2.imwrite(os.path.join(debug_dir, f'roi_{frame_number}.jpg'), roi)
-        cv2.imwrite(os.path.join(debug_dir, f'diff_{frame_number}.jpg'), diff)
-        cv2.imwrite(os.path.join(debug_dir, f'fg_mask_{frame_number}.jpg'), fg_mask)
-        cv2.imwrite(os.path.join(debug_dir, f'roi_contours_{frame_number}.jpg'), roi_with_contours)
+        cv2.imwrite(os.path.join(debug_dir, f'frame_{frame_number}_index_{frame_index}.jpg'), frame)
+        cv2.imwrite(os.path.join(debug_dir, f'roi_{frame_number}_index_{frame_index}.jpg'), roi)
+        cv2.imwrite(os.path.join(debug_dir, f'diff_{frame_number}_index_{frame_index}.jpg'), diff)
+        cv2.imwrite(os.path.join(debug_dir, f'fg_mask_{frame_number}_index_{frame_index}.jpg'), fg_mask)
+        cv2.imwrite(os.path.join(debug_dir, f'roi_contours_{frame_number}_index_{frame_index}.jpg'), roi_with_contours)
 
         # Check for significant contours
         for cnt in contours:
