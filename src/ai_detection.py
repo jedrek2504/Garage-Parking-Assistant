@@ -5,6 +5,7 @@ import threading
 import logging
 import time
 from shared_camera import SharedCamera
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +17,7 @@ class AIModule:
         self.background_frame = cv2.imread(self.background_frame_path)
         if self.background_frame is None:
             raise FileNotFoundError("Background frame not found.")
-        
+        self.frame_save_count = 0
         self.roi_top_left = (50, 10)
         self.roi_bottom_right = (575, 400)
         self.background_roi = self.background_frame[
@@ -53,7 +54,7 @@ class AIModule:
         # AI module stops itself after one detection
         self.stop()
 
-    def _process_frame(self, frame):
+    def _process_frame(self, frame, frame_index=0):
         roi = frame[
             self.roi_top_left[1]:self.roi_bottom_right[1],
             self.roi_top_left[0]:self.roi_bottom_right[0],
@@ -65,7 +66,26 @@ class AIModule:
         fg_mask = cv2.morphologyEx(fg_mask, cv2.MORPH_OPEN, kernel, iterations=2)
         fg_mask = cv2.morphologyEx(fg_mask, cv2.MORPH_DILATE, kernel, iterations=1)
 
+        # Find contours
         contours, _ = cv2.findContours(fg_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        
+        # Draw contours on a copy of the ROI for visualization
+        roi_with_contours = roi.copy()
+        cv2.drawContours(roi_with_contours, contours, -1, (0, 255, 0), 2)
+
+        # Save images for debugging
+        debug_dir = 'debug_images'
+        os.makedirs(debug_dir, exist_ok=True)
+        frame_number = self.frame_save_count
+        self.frame_save_count += 1
+
+        cv2.imwrite(os.path.join(debug_dir, f'frame_{frame_number}.jpg'), frame)
+        cv2.imwrite(os.path.join(debug_dir, f'roi_{frame_number}.jpg'), roi)
+        cv2.imwrite(os.path.join(debug_dir, f'diff_{frame_number}.jpg'), diff)
+        cv2.imwrite(os.path.join(debug_dir, f'fg_mask_{frame_number}.jpg'), fg_mask)
+        cv2.imwrite(os.path.join(debug_dir, f'roi_contours_{frame_number}.jpg'), roi_with_contours)
+
+        # Check for significant contours
         for cnt in contours:
             area = cv2.contourArea(cnt)
             if area > 1500:  # Adjust threshold to reduce false positives
