@@ -44,12 +44,13 @@ mqtt:
       state_topic: "garage/parking/garage_door/state"
       payload_open: "OPEN"
       payload_close: "CLOSE"
-      state_open: "OPEN"
-      state_closed: "CLOSE"
+      state_open: "open"
+      state_closed: "closed"
       optimistic: false
       qos: 0
       retain: false
       icon: "mdi:garage"
+
 
 # Input Numbers (for Thresholds and Brightness)
 input_number:

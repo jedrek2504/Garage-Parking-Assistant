@@ -61,7 +61,7 @@ class GarageParkingAssistant:
             self.stop_parking_procedure()
 
         self.mqtt_handler.publish_garage_state(self.garage_door_open)
-        logger.info(f"Garage door state updated to: {'OPEN' if self.garage_door_open else 'CLOSED'}")
+        logger.info(f"Garage door state updated to: {'open' if self.garage_door_open else 'closed'}")
 
     def start_parking_procedure(self):
         with self.ai_lock:

@@ -50,7 +50,7 @@ class MqttHandler:
                     logger.debug(f"Published {sensor_name} distance: {distance} cm")
 
     def publish_garage_state(self, is_open):
-        state = "OPEN" if is_open else "CLOSE"
+        state = "open" if is_open else "closed"
         self.client.publish(self.config.MQTT_TOPICS["garage_state"], state)
         logger.debug(f"Published garage door state: {state}")
 
