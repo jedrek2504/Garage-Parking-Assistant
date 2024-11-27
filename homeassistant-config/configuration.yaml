@@ -36,7 +36,7 @@ mqtt:
       state_topic: "garage/parking/process_state"
       icon: "mdi:garage"
       unique_id: "sensor_garage_process_state"
-      
+    
 # Cover
   cover:
     - name: "Garage Door"

@@ -46,6 +46,9 @@ class GarageParkingAssistant:
         # Variable to keep track of the current process
         self.process = None  # "parking", "exiting", or None
 
+        # Flag to prevent multiple close commands
+        self.close_command_sent = False
+
     def update_settings(self, data):
         self.sensor_manager.update_thresholds(data)
         self.led_manager.update_brightness(data.get("brightness", self.led_manager.brightness))
@@ -107,7 +110,6 @@ class GarageParkingAssistant:
             logger.info("All sensors detect close objects.")
             return True
 
-
     def stop_parking_procedure(self):
         with self.ai_lock:
             if self.parking_procedure_active:
@@ -117,8 +119,9 @@ class GarageParkingAssistant:
                 self.mqtt_handler.publish_process("idle")  # Publish idle state
 
                 self.ai_module.stop()
-                self.led_manager.stop_blinking()
-                self.led_manager.clear_leds()
+                
+                # Reset the Close Command Flag
+                self.close_command_sent = False
             else:
                 logger.debug("Parking procedure not active.")
 
@@ -164,6 +167,28 @@ class GarageParkingAssistant:
         flask_thread.start()
         logger.info("Flask app started in a separate thread.")
 
+    def handle_garage_closure(self):
+        front_distance = self.distances.get('front')
+        red_threshold_front = self.sensor_manager.red_distance_threshold.get('front')
+
+        if (front_distance is not None and
+            red_threshold_front is not None and
+            front_distance <= red_threshold_front and
+            self.process == "parking" and
+            not self.close_command_sent):
+
+            logger.debug(
+                f"Front sensor detected red distance ({front_distance} cm) "
+                f"while in 'parking' state. Initiating garage door closure."
+            )
+            logger.info("Initiating garage door closure.")
+
+            # Send the 'CLOSE' command to the garage door
+            self.mqtt_handler.send_garage_command("CLOSE")
+
+            # Update the flag to prevent multiple commands
+            self.close_command_sent = True
+
     def main_loop(self):
         if self.system_enabled:
             if self.led_manager.is_blinking():
@@ -173,6 +198,11 @@ class GarageParkingAssistant:
                 self.sensor_manager.measure_distances(self.distances)
                 self.led_manager.update_leds(self.distances)
                 self.mqtt_handler.publish_distances(self.distances)
+                self.mqtt_handler.publish_process(self.process if self.process else "idle")
+
+                # Handle garage door closure automation
+                self.handle_garage_closure()
+
             time.sleep(0.5)
         else:
             self.stop_parking_procedure()

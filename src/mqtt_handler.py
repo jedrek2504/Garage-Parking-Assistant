@@ -79,3 +79,12 @@ class MqttHandler:
         while not self.settings_received:
             logger.debug("Waiting for settings...")
             time.sleep(1)
+
+    # **New Method to Send Garage Commands**
+    def send_garage_command(self, command):
+        """Send a command to the garage door ('OPEN' or 'CLOSE')."""
+        if command.upper() in ["OPEN", "CLOSE"]:
+            self.client.publish(self.config.MQTT_TOPICS["garage_command"], command.upper())
+            logger.info(f"Sent garage command: {command.upper()}")
+        else:
+            logger.error(f"Invalid garage command: {command}")
