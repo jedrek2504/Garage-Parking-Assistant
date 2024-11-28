@@ -20,7 +20,9 @@ class MqttHandler:
         self.client.connect(self.config.MQTT_BROKER, self.config.MQTT_PORT, 60)
         self.client.subscribe([
             (self.config.MQTT_TOPICS["settings"], 0),
-            (self.config.MQTT_TOPICS["garage_command"], 0)
+            (self.config.MQTT_TOPICS["garage_command"], 0),
+            ("homeassistant/status/user_is_home", 0),  # New subscription
+            (self.config.MQTT_TOPICS["garage_state"], 0)  # Subscribe to garage state changes
         ])
         self.client.loop_start()
         logger.info("MQTT client connected and subscribed to topics.")
@@ -37,8 +39,15 @@ class MqttHandler:
             elif msg.topic == self.config.MQTT_TOPICS["garage_command"]:
                 self.on_garage_command(payload)
                 logger.info(f"Garage command received: {payload}")
+            elif msg.topic == "homeassistant/status/user_is_home":
+                self.on_settings_update({"user_is_home": payload})  # Pass user status to event handler
+            elif msg.topic == self.config.MQTT_TOPICS["garage_state"]:
+                # Handle garage state changes if needed
+                pass
         except json.JSONDecodeError:
             logger.error("Invalid JSON payload received.")
+
+    # Existing publish methods remain unchanged...
 
     def publish_distances(self, distances):
         with distances['lock']:

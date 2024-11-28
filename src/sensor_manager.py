@@ -31,6 +31,7 @@ class SensorManager:
 
     def setup_sensors(self):
         setup_sensors(self.sensors)
+        logger.info("Sensors have been set up.")
 
     def measure_distances(self, distances):
         # Measure all sensors
@@ -42,5 +43,9 @@ class SensorManager:
             logger.debug(f"{sensor_name.capitalize()} measured distance: {distance} cm")
             time.sleep(0.05)  # Short delay to prevent sensor interference
 
+    def are_measurements_active(self):
+        return all(sensor for sensor in self.sensors.values())
+
     def cleanup(self):
         cleanup()
+        logger.info("Sensors have been cleaned up.")

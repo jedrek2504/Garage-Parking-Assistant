@@ -32,22 +32,103 @@ class GarageParkingAssistant:
         )
         self.ai_module = AIModule(self.config, self.on_ai_detection)
 
-        self.system_enabled = self.config.SYSTEM_ENABLED
+        # New State Variables
+        self.system_enabled = False  # System is disabled by default
+        self.user_is_home = False  # Track if the user is home
 
         self.distances = {'front': None, 'left': None, 'right': None, 'lock': threading.Lock()}
 
         self.parking_procedure_active = False
-
         self.garage_door_open = False
 
-        # Lock to synchronize AI Module state
+        # Lock to synchronize AI Module state and system state
         self.ai_lock = threading.Lock()
+        self.system_lock = threading.Lock()
 
         # Variable to keep track of the current process
         self.process = None  # "parking", "exiting", or None
 
         # Flag to prevent multiple close commands
         self.close_command_sent = False
+
+        # Register event handlers
+        self.register_event_handlers()
+
+    def register_event_handlers(self):
+        # Subscribe to relevant MQTT topics or Home Assistant events
+        self.mqtt_handler.client.message_callback_add("homeassistant/status/user_is_home", self.on_user_status_change)
+        self.mqtt_handler.client.message_callback_add(self.config.MQTT_TOPICS["garage_state"], self.on_garage_door_state_change)
+
+    def on_user_status_change(self, client, userdata, msg):
+        payload = msg.payload.decode().lower()
+        previous_status = self.user_is_home
+        self.user_is_home = (payload == 'on')
+        logger.info(f"User is home status changed to: {self.user_is_home}")
+
+        # If user becomes home and garage door is open, enable the system
+        if self.user_is_home and self.garage_door_open:
+            self.enable_system()
+        elif not self.user_is_home and self.system_enabled:
+            # Optionally handle user leaving home
+            pass  # Depending on desired behavior
+
+    def on_garage_door_state_change(self, client, userdata, msg):
+        payload = msg.payload.decode().lower()
+        previous_state = self.garage_door_open
+        self.garage_door_open = (payload == 'open')
+        logger.info(f"Garage door state changed to: {self.garage_door_open}")
+
+        if self.garage_door_open and self.user_is_home:
+            self.enable_system()
+        elif not self.garage_door_open:
+            self.disable_system()
+
+    def enable_system(self):
+        with self.system_lock:
+            if not self.system_enabled:
+                logger.info("Enabling Parking System...")
+                self.system_enabled = True
+
+                # Turn on LEDs
+                self.led_manager.update_brightness(self.config.BRIGHTNESS)
+                self.led_manager.update_leds(self.distances)  # Initialize LEDs based on current distances
+
+                # Start distance measurements
+                self.sensor_manager.setup_sensors()
+
+                # Allow some delay to ensure LEDs and sensors are active
+                time.sleep(1)  # Adjust delay as necessary
+
+                # Confirm LEDs are active and measurements are ongoing
+                if self.led_manager.are_leds_active() and self.sensor_manager.are_measurements_active():
+                    # Initialize AI Module
+                    self.ai_module.start()
+                    logger.info("AI Module initialized successfully.")
+                else:
+                    logger.error("Failed to confirm LEDs or measurements are active. AI Module not initialized.")
+
+                logger.info("Parking System enabled successfully.")
+            else:
+                logger.debug("Parking System is already enabled.")
+
+    def disable_system(self):
+        with self.system_lock:
+            if self.system_enabled:
+                logger.info("Disabling Parking System...")
+                self.system_enabled = False
+
+                # Turn off LEDs
+                self.led_manager.clear_leds()
+
+                # Stop distance measurements
+                self.sensor_manager.cleanup()
+
+                # Stop AI Module if active
+                self.ai_module.stop()
+
+                logger.info("Parking System disabled successfully.")
+            else:
+                logger.debug("Parking System is already disabled.")
 
     def update_settings(self, data):
         self.sensor_manager.update_thresholds(data)
@@ -58,10 +139,11 @@ class GarageParkingAssistant:
     def on_garage_command(self, command):
         if command == "OPEN":
             self.garage_door_open = True
-            self.start_parking_procedure()
+            if self.user_is_home:
+                self.enable_system()
         elif command == "CLOSE":
             self.garage_door_open = False
-            self.stop_parking_procedure()
+            self.disable_system()
 
         self.mqtt_handler.publish_garage_state(self.garage_door_open)
         logger.info(f"Garage door state updated to: {'open' if self.garage_door_open else 'closed'}")
@@ -119,7 +201,7 @@ class GarageParkingAssistant:
                 self.mqtt_handler.publish_process("idle")  # Publish idle state
 
                 self.ai_module.stop()
-                
+
                 # Reset the Close Command Flag
                 self.close_command_sent = False
             else:
@@ -205,22 +287,25 @@ class GarageParkingAssistant:
 
             time.sleep(0.5)
         else:
-            self.stop_parking_procedure()
+            # System is disabled; ensure all components are turned off
             self.led_manager.clear_leds()
             logger.info("System disabled. LEDs turned off.")
             time.sleep(5)
 
     def run(self):
         try:
-            self.sensor_manager.setup_sensors()
-
+            # Initial Setup
             self.mqtt_handler.connect()
-            self.mqtt_handler.request_settings()
             self.start_flask_app()
 
-            self.mqtt_handler.wait_for_settings()
-            logger.info("Settings received. Starting main loop.")
+            # Request initial settings
+            self.mqtt_handler.request_settings()
 
+            # Wait for settings to be received
+            self.mqtt_handler.wait_for_settings()
+            logger.info("Settings received. Parking System is disabled by default.")
+
+            # Main Loop
             while True:
                 self.main_loop()
         except KeyboardInterrupt:
@@ -228,7 +313,8 @@ class GarageParkingAssistant:
         except Exception as e:
             logger.exception("An unexpected error occurred.")
         finally:
-            self.stop_parking_procedure()
+            # Ensure system is disabled on exit
+            self.disable_system()
             self.led_manager.clear_leds()
             self.mqtt_handler.disconnect()
             self.sensor_manager.cleanup()
