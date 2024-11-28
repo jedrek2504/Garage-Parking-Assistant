@@ -31,10 +31,11 @@ class MqttHandler:
 
     def on_message(self, client, userdata, msg):
         payload = msg.payload.decode()
-        logger.debug(f"Received MQTT message on {msg.topic}: {payload}")
+        logger.info(f"Received MQTT message on {msg.topic}: {payload}")
         try:
             if msg.topic == self.config.MQTT_TOPICS["settings"]:
                 data = json.loads(payload)
+                logger.info(f"Settings received: {data}")
                 self.on_settings_update(data)
                 self.settings_received = True
                 logger.info("Settings updated from MQTT message.")
@@ -57,24 +58,30 @@ class MqttHandler:
                 if distance is not None:
                     topic = f"{self.config.MQTT_BASE_TOPIC}/sensor/{sensor_name}/distance"
                     self.client.publish(topic, str(distance))
-                    logger.debug(f"Published {sensor_name} distance: {distance} cm")
+                    logger.info(f"Published {sensor_name} distance: {distance} cm to topic {topic}")
 
     def publish_garage_state(self, is_open):
         state = "open" if is_open else "closed"
         self.client.publish(self.config.MQTT_TOPICS["garage_state"], state)
-        logger.debug(f"Published garage door state: {state}")
+        logger.info(f"Published garage door state: {state} to topic {self.config.MQTT_TOPICS['garage_state']}")
 
     def publish_ai_detection(self, obstacle_detected):
         topic = self.config.MQTT_TOPICS["ai_detection"]
         payload = "DETECTED" if obstacle_detected else "CLEAR"
         self.client.publish(topic, payload)
-        logger.debug(f"Published AI detection: {payload}")
+        logger.info(f"Published AI detection: {payload} to topic {topic}")
 
     def publish_process(self, process):
         topic = self.config.MQTT_TOPICS["process_state"]
         payload = process
         self.client.publish(topic, payload)
-        logger.debug(f"Published process state: {payload}")
+        logger.info(f"Published process state: {payload} to topic {topic}")
+
+    def publish_system_enabled(self, is_enabled):
+        state = "ON" if is_enabled else "OFF"
+        topic = self.config.MQTT_TOPICS["system_enabled"]
+        self.client.publish(topic, state)
+        logger.info(f"Published system enabled state: {state} to topic {topic}")
 
     def request_settings(self):
         logger.info("Requesting current settings from Home Assistant...")
@@ -98,6 +105,6 @@ class MqttHandler:
         """Send a command to the garage door ('OPEN' or 'CLOSE')."""
         if command.upper() in ["OPEN", "CLOSE"]:
             self.client.publish(self.config.MQTT_TOPICS["garage_command"], command.upper())
-            logger.info(f"Sent garage command: {command.upper()}")
+            logger.info(f"Sent garage command: {command.upper()} to topic {self.config.MQTT_TOPICS['garage_command']}")
         else:
             logger.error(f"Invalid garage command: {command}")

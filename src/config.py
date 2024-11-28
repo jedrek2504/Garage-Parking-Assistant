@@ -25,5 +25,6 @@ class Config:
         "process_state": "garage/parking/process_state",
         "user_status": "homeassistant/status/user_is_home",
         "garage_state_get": "garage/parking/garage_door/state/get",
+        "system_enabled": "garage/parking/system_enabled",
     }
     BACKGROUND_FRAME_PATH = "background_frame.jpg"

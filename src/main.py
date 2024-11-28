@@ -12,13 +12,16 @@ from camera_stream import run_flask_app
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,  # Set to DEBUG to capture detailed logs
     format='%(asctime)s [%(levelname)s] [%(name)s] %(message)s',
     handlers=[
         logging.FileHandler('garage_parking_assistant.log', mode='w')
     ]
 )
 logger = logging.getLogger(__name__)
+
+# Adjust logging levels for specific modules
+logging.getLogger('picamera2.picamera2').setLevel(logging.INFO)
 
 class GarageParkingAssistant:
     def __init__(self):
@@ -56,12 +59,14 @@ class GarageParkingAssistant:
         )
 
     def update_settings(self, data):
+        logger.info(f"Updating settings with data: {data}")
         self.sensor_manager.update_thresholds(data)
         self.led_manager.update_brightness(data.get("brightness", self.led_manager.brightness))
         self.system_enabled = data.get("enabled", self.system_enabled)
         logger.info(f"System enabled set to: {self.system_enabled}")
 
     def on_garage_command(self, command):
+        logger.info(f"Received garage command: {command}")
         if command == "OPEN":
             self.garage_door_open = True
             self.start_parking_procedure()
@@ -73,11 +78,13 @@ class GarageParkingAssistant:
         logger.info(f"Garage door state updated: {'open' if self.garage_door_open else 'closed'}")
 
     def on_user_status_update(self, status):
+        logger.info(f"Received user status update: {status}")
         self.user_is_home = (status.lower() == 'on')
         logger.info(f"User is home: {self.user_is_home}")
         self.update_system_enabled_state()
 
     def on_garage_state_update(self, state):
+        logger.info(f"Received garage door state update: {state}")
         self.garage_door_open = (state.lower() == 'open')
         logger.info(f"Garage door is open: {self.garage_door_open}")
         self.update_system_enabled_state()
@@ -86,8 +93,11 @@ class GarageParkingAssistant:
         # Enable the system if the user is home and the garage door is open
         previous_state = self.system_enabled
         self.system_enabled = self.user_is_home and self.garage_door_open
+        logger.info(f"update_system_enabled_state: user_is_home={self.user_is_home}, garage_door_open={self.garage_door_open}, system_enabled={self.system_enabled}")
         if self.system_enabled != previous_state:
             logger.info(f"System enabled state changed to: {self.system_enabled}")
+            # Publish the new system_enabled state
+            self.mqtt_handler.publish_system_enabled(self.system_enabled)
 
     def start_parking_procedure(self):
         with self.ai_lock:
@@ -169,6 +179,7 @@ class GarageParkingAssistant:
             logger.info("AI detected no obstacle.")
             # Publish AI detection event
             self.mqtt_handler.publish_ai_detection(False)
+            # Parking procedure remains active
 
     def handle_blinking_duration(self):
         # Blink LEDs for 10 seconds
@@ -200,7 +211,10 @@ class GarageParkingAssistant:
         front_distance = self.distances.get('front')
         red_threshold_front = self.sensor_manager.red_distance_threshold.get('front')
 
+        logger.debug(f"handle_garage_closure: front_distance={front_distance}, red_threshold_front={red_threshold_front}")
+
         if (front_distance is not None and
+            front_distance > 0 and  # Ensure distance is positive
             red_threshold_front is not None and
             front_distance <= red_threshold_front and
             self.process == "parking" and
