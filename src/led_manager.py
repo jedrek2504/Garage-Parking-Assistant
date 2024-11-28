@@ -40,9 +40,6 @@ class LedManager:
     def is_blinking(self):
         return self.blinking
 
-    def are_leds_active(self):
-        return any(pixel != (0, 0, 0) for pixel in pixels)
-
     def update_leds(self, distances):
         if self.blinking:
             current_time = time.time()

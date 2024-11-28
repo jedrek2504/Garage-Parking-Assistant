@@ -61,7 +61,7 @@
       data:
         title: 'ALARM: Otwarta wiata garażowa'
         message: 'System wykrył, że znajdujesz się poza domem, a wiata garażowa jest otwarta.'
-  mode: single
+  mode: single 
 - alias: Publish User Status to MQTT
   trigger:
     - platform: state
@@ -72,3 +72,24 @@
         topic: homeassistant/status/user_is_home
         payload: "{{ 'on' if is_state('input_boolean.user_is_home', 'on') else 'off' }}"
   id: publish_user_status
+- alias: Publish User Status to MQTT
+  trigger:
+    - platform: state
+      entity_id: input_boolean.user_is_home
+  action:
+    - service: mqtt.publish
+      data:
+        topic: "homeassistant/status/user_is_home"
+        payload: "{{ 'on' if is_state('input_boolean.user_is_home', 'on') else 'off' }}"
+  id: publish_user_status
+
+- alias: Send Garage Door State on Request
+  trigger:
+    - platform: mqtt
+      topic: "garage/parking/garage_door/state/get"
+  action:
+    - service: mqtt.publish
+      data:
+        topic: "garage/parking/garage_door/state"
+        payload: "{{ 'open' if is_state('cover.garage_door', 'open') else 'closed' }}"
+  id: send_garage_state_on_request
