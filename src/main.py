@@ -94,8 +94,14 @@ class GarageParkingAssistant:
             if not self.parking_procedure_active:
                 logger.info("Garage door is open. Starting parking procedure.")
 
-                # Determine the process based on sensor readings
+                # Measure distances
                 self.sensor_manager.measure_distances(self.distances)
+
+                # Update LEDs based on distances before starting AI detection
+                self.led_manager.update_leds(self.distances)
+
+                # Allow time for LEDs to turn on and stabilize
+                time.sleep(1)  # Adjust the duration as needed
 
                 # Check sensor readings to determine if the car is present
                 close_object_detected = self.is_close_object_detected()
@@ -239,7 +245,7 @@ class GarageParkingAssistant:
 
             self.mqtt_handler.connect()
             self.mqtt_handler.request_settings()
-            self.mqtt_handler.request_garage_state()  # Request initial garage state
+            self.mqtt_handler.request_garage_state()
             self.start_flask_app()
 
             self.mqtt_handler.wait_for_settings()
