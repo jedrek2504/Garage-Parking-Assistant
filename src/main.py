@@ -25,6 +25,9 @@ class GarageParkingAssistant:
         self.config = Config()
         self.sensor_manager = SensorManager(self.config)
         self.led_manager = LedManager(self.config, self.sensor_manager)
+
+        self.ai_module = AIModule(self.config, self.on_ai_detection)
+
         self.system_enabled = self.config.SYSTEM_ENABLED
 
         self.distances = {'front': None, 'left': None, 'right': None, 'lock': threading.Lock()}
@@ -48,8 +51,8 @@ class GarageParkingAssistant:
             config=self.config,
             on_settings_update=self.update_settings,
             on_garage_command=self.on_garage_command,
-            on_user_status_update=self.on_user_status_update,  # New callback
-            on_garage_state_update=self.on_garage_state_update  # New callback
+            on_user_status_update=self.on_user_status_update,
+            on_garage_state_update=self.on_garage_state_update
         )
 
     def update_settings(self, data):
