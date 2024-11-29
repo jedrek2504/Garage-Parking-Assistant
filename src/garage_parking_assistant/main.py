@@ -42,6 +42,7 @@ class GarageParkingAssistant:
         self.mqtt_handler = MqttHandler(self.config)
         self.mqtt_handler.register_observer(self)
         self.ai_lock = threading.RLock()
+        self.red_proximity_start_time = None
 
     def update(self, topic, payload):
         """
@@ -111,7 +112,7 @@ class GarageParkingAssistant:
                 self.measure_and_update_distances()
 
                 # Allow time for LEDs to turn on and stabilize
-                time.sleep(1)
+                time.sleep(5)
 
                 # Check sensor readings to determine if the car is present
                 close_object_detected = self.is_close_object_detected()
@@ -150,9 +151,11 @@ class GarageParkingAssistant:
                 logger.info("Garage door is closed. Stopping parking procedure.")
                 self.parking_procedure_active = False
                 self.process = None
-                self.mqtt_handler.publish_process("idle")
+                self.mqtt_handler.publish_process("IDLE")
                 self.ai_module.stop()
                 self.close_command_sent = False
+                # Reset red proximity timer
+                self.red_proximity_start_time = None
             else:
                 logger.debug("Parking procedure not active.")
 
@@ -201,19 +204,42 @@ class GarageParkingAssistant:
 
         if (front_distance is not None and
             front_distance > 0 and
-            red_threshold_front is not None and
-            front_distance <= red_threshold_front and
-            self.process == "parking" and
-            not self.close_command_sent):
+            red_threshold_front is not None):
 
-            logger.debug(
-                f"Front sensor detected red distance ({front_distance} cm) "
-                f"while in 'parking' state. Initiating garage door closure."
-            )
-            logger.info("Initiating garage door closure.")
+            if front_distance <= red_threshold_front:
+                # Car is within red proximity
+                if self.red_proximity_start_time is None:
+                    # Record the time when the car first enters red proximity
+                    self.red_proximity_start_time = time.time()
+                    logger.debug("Car entered red proximity, starting timer.")
+                else:
+                    # Check if the car has been within red proximity for 5 seconds
+                    elapsed_time = time.time() - self.red_proximity_start_time
+                    logger.debug(f"Car has been within red proximity for {elapsed_time:.2f} seconds.")
+                    if (elapsed_time >= 5 and
+                        self.process == "parking" and
+                        not self.close_command_sent):
+                        logger.debug(
+                            f"Front sensor detected red distance ({front_distance} cm) "
+                            f"for {elapsed_time:.2f} seconds while in 'parking' state. Initiating garage door closure."
+                        )
+                        logger.info("Initiating garage door closure.")
 
-            self.mqtt_handler.send_garage_command("CLOSE")
-            self.close_command_sent = True
+                        self.mqtt_handler.send_garage_command("CLOSE")
+                        self.close_command_sent = True
+
+                        # Disable the system after closure
+                        self.system_enabled = False
+                        self.mqtt_handler.publish_system_enabled(self.system_enabled)
+                        logger.info("System disabled after garage door closure.")
+            else:
+                # Car is not within red proximity, reset the timer
+                if self.red_proximity_start_time is not None:
+                    logger.debug("Car exited red proximity, resetting timer.")
+                self.red_proximity_start_time = None
+        else:
+            # Front distance is invalid, reset the timer
+            self.red_proximity_start_time = None
 
     def main_loop(self):
         if self.system_enabled:
@@ -223,7 +249,7 @@ class GarageParkingAssistant:
             else:
                 self.measure_and_update_distances()
                 self.mqtt_handler.publish_distances(self.distances)
-                self.mqtt_handler.publish_process(self.process if self.process else "idle")
+                self.mqtt_handler.publish_process(self.process if self.process else "IDLE")
                 self.handle_garage_closure()
 
             time.sleep(0.5)

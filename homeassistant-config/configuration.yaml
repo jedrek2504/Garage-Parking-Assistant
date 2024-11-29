@@ -2,7 +2,7 @@
 
 mqtt:
 
-sensor:
+  sensor:
     - name: "Front Parking Distance"
       state_topic: "garage/parking/sensor/front/distance"
       unit_of_measurement: "cm"
