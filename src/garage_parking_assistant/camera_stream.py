@@ -1,4 +1,4 @@
-# src/camera_stream.py
+# src/garage_parking_assistant/camera_stream.py
 
 from flask import Flask, Response
 from shared_camera import SharedCamera
@@ -6,7 +6,7 @@ import cv2
 import logging
 import time
 
-def run_flask_app(distances):
+def run_flask_app():
     # Configure logging for the Flask app to log to console
     logging.basicConfig(
         level=logging.INFO,

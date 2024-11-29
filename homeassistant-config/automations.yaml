@@ -1,4 +1,4 @@
-# automations.yaml
+# homeassistant-config/automations.yaml
 
 - alias: Send Distance Thresholds and Brightness to Raspberry Pi
   trigger:
@@ -28,24 +28,6 @@
         retain: true
   id: send_distance_thresholds_and_brightness
 
-- id: notify_if_garage_door_open_when_user_away
-  alias: Notify if Garage Door is Open When User is Away
-  trigger:
-    - platform: state
-      entity_id: input_boolean.user_is_home
-      from: 'on'
-      to: 'off'
-  condition:
-    - condition: state
-      entity_id: cover.garage_door
-      state: 'open'
-  action:
-    - service: notify.mobile_app_iphone_jedrzej
-      data:
-        title: 'ALARM: Otwarta wiata garażowa'
-        message: 'System wykrył, że znajdujesz się poza domem, a wiata garażowa jest otwarta.'
-  mode: single
-
 - alias: Publish User Status to MQTT
   trigger:
     - platform: state
@@ -69,3 +51,21 @@
         payload: "{{ 'open' if is_state('cover.garage_door', 'open') else 'closed' }}"
         retain: true
   id: publish_garage_door_state
+
+- id: notify_if_garage_door_open_when_user_away
+  alias: Notify if Garage Door is Open When User is Away
+  trigger:
+    - platform: state
+      entity_id: input_boolean.user_is_home
+      from: 'on'
+      to: 'off'
+  condition:
+    - condition: state
+      entity_id: cover.garage_door
+      state: 'open'
+  action:
+    - service: notify.mobile_app_iphone_jedrzej
+      data:
+        title: 'ALARM: Otwarta wiata garażowa'
+        message: 'System wykrył, że znajdujesz się poza domem, a wiata garażowa jest otwarta.'
+  mode: single
