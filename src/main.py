@@ -258,13 +258,9 @@ class GarageParkingAssistant:
             self.sensor_manager.setup_sensors()
 
             self.mqtt_handler.connect()
-            self.mqtt_handler.request_settings()
-            self.mqtt_handler.request_garage_state()
             self.start_flask_app()
 
-            self.mqtt_handler.wait_for_settings()
-            logger.info("Settings received. Starting main loop.")
-
+            logger.info("Starting main loop.")
             while True:
                 self.main_loop()
         except KeyboardInterrupt:

@@ -25,27 +25,8 @@
             "orange_distance_threshold_right": {{ states('input_number.orange_distance_threshold_right') | int }},
             "brightness": {{ states('input_number.led_brightness') | int }}
           }
+        retain: true
   id: send_distance_thresholds_and_brightness
-
-- alias: Send Settings on Request
-  trigger:
-    - platform: mqtt
-      topic: garage/parking/settings/get
-  action:
-    - service: mqtt.publish
-      data:
-        topic: garage/parking/settings
-        payload: >
-          {
-            "red_distance_threshold_front": {{ states('input_number.red_distance_threshold_front') | int }},
-            "orange_distance_threshold_front": {{ states('input_number.orange_distance_threshold_front') | int }},
-            "red_distance_threshold_left": {{ states('input_number.red_distance_threshold_left') | int }},
-            "orange_distance_threshold_left": {{ states('input_number.orange_distance_threshold_left') | int }},
-            "red_distance_threshold_right": {{ states('input_number.red_distance_threshold_right') | int }},
-            "orange_distance_threshold_right": {{ states('input_number.orange_distance_threshold_right') | int }},
-            "brightness": {{ states('input_number.led_brightness') | int }}
-          }
-  id: send_settings_on_request
 
 - id: notify_if_garage_door_open_when_user_away
   alias: Notify if Garage Door is Open When User is Away
@@ -77,13 +58,14 @@
         retain: true
   id: publish_user_status
 
-- alias: Send Garage Door State on Request
+- alias: Publish Garage Door State to MQTT
   trigger:
-    - platform: mqtt
-      topic: "garage/parking/garage_door/state/get"
+    - platform: state
+      entity_id: cover.garage_door
   action:
     - service: mqtt.publish
       data:
         topic: "garage/parking/garage_door/state"
         payload: "{{ 'open' if is_state('cover.garage_door', 'open') else 'closed' }}"
-  id: send_garage_state_on_request
+        retain: true
+  id: publish_garage_door_state
