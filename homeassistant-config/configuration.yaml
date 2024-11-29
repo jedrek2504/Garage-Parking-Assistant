@@ -135,11 +135,6 @@ input_number:
 
 # Input Boolean (for System Enable/Disable)
 input_boolean:
-  parking_system_enabled:
-    name: "Parking System Enabled"
-    initial: true
-    icon: "mdi:garage"
-
   user_is_home:
     name: "User is Home"
     initial: on

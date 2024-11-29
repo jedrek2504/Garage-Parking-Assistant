@@ -11,7 +11,6 @@
         - input_number.red_distance_threshold_right
         - input_number.orange_distance_threshold_right
         - input_number.led_brightness
-        - input_boolean.parking_system_enabled
   action:
     - service: mqtt.publish
       data:
@@ -24,8 +23,7 @@
             "orange_distance_threshold_left": {{ states('input_number.orange_distance_threshold_left') | int }},
             "red_distance_threshold_right": {{ states('input_number.red_distance_threshold_right') | int }},
             "orange_distance_threshold_right": {{ states('input_number.orange_distance_threshold_right') | int }},
-            "brightness": {{ states('input_number.led_brightness') | int }},
-            "enabled": {{ (states('input_boolean.parking_system_enabled') == 'on') | string | lower }}
+            "brightness": {{ states('input_number.led_brightness') | int }}
           }
   id: send_distance_thresholds_and_brightness
 
@@ -45,8 +43,7 @@
             "orange_distance_threshold_left": {{ states('input_number.orange_distance_threshold_left') | int }},
             "red_distance_threshold_right": {{ states('input_number.red_distance_threshold_right') | int }},
             "orange_distance_threshold_right": {{ states('input_number.orange_distance_threshold_right') | int }},
-            "brightness": {{ states('input_number.led_brightness') | int }},
-            "enabled": {{ (states('input_boolean.parking_system_enabled') == 'on') | string | lower }}
+            "brightness": {{ states('input_number.led_brightness') | int }}
           }
   id: send_settings_on_request
 
