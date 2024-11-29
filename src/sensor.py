@@ -46,6 +46,12 @@ class UltrasonicSensor:
                     return None
 
             pulse_duration = pulse_end - pulse_start
+
+            # Validate pulse_duration
+            if pulse_duration <= 0 or pulse_duration > 0.04:  # Max 40 ms
+                logger.warning(f"{self.name}: Invalid pulse duration: {pulse_duration}")
+                return None
+
             distance = pulse_duration * 17150
             logger.debug(f"{self.name}: Measured distance: {distance:.2f} cm")
             return round(distance, 2)

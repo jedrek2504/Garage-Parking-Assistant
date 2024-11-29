@@ -31,6 +31,7 @@ class SensorManager:
 
     def setup_sensors(self):
         setup_sensors(self.sensors)
+        logger.info("Sensors have been set up.")
 
     def measure_distances(self, distances):
         # Measure all sensors
@@ -44,3 +45,4 @@ class SensorManager:
 
     def cleanup(self):
         cleanup()
+        logger.info("Sensors have been cleaned up.")

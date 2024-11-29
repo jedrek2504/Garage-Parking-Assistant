@@ -36,7 +36,23 @@ mqtt:
       state_topic: "garage/parking/process_state"
       icon: "mdi:garage"
       unique_id: "sensor_garage_process_state"
-    
+
+# Binary Sensors
+  binary_sensor:
+    - name: "User Is Home"
+      state_topic: "homeassistant/status/user_is_home"
+      payload_on: "on"
+      payload_off: "off"
+      device_class: presence
+      unique_id: "binary_sensor_user_is_home"
+  
+    - name: "System Enabled"
+      state_topic: "garage/parking/system_enabled"
+      payload_on: "ON"
+      payload_off: "OFF"
+      device_class: power
+      unique_id: "binary_sensor_system_enabled"
+
 # Cover
   cover:
     - name: "Garage Door"
@@ -119,11 +135,6 @@ input_number:
 
 # Input Boolean (for System Enable/Disable)
 input_boolean:
-  parking_system_enabled:
-    name: "Parking System Enabled"
-    initial: true
-    icon: "mdi:garage"
-
   user_is_home:
     name: "User is Home"
     initial: on
