@@ -115,9 +115,9 @@ class GarageParkingAssistant:
                 time.sleep(5)
 
                 # Check sensor readings to determine if the car is present
-                close_object_detected = self.is_close_object_detected()
+                car_in_garage = self.is_car_in_garage()
 
-                if close_object_detected:
+                if car_in_garage:
                     self.process = "exiting"
                     logger.info("Process identified: Exiting the garage.")
                     self.mqtt_handler.publish_process(self.process)
@@ -131,18 +131,18 @@ class GarageParkingAssistant:
             else:
                 logger.debug("Parking procedure already active.")
 
-    def is_close_object_detected(self):
+    def is_car_in_garage(self):
         with self.distances_lock:
             for sensor_name in ['front', 'left', 'right']:
                 distance = self.distances.get(sensor_name)
                 if distance is None:
-                    logger.warning(f"{sensor_name} sensor reading is None. Assuming object not close.")
+                    logger.warning(f"{sensor_name} sensor reading is None. Assuming safe distance.")
                     return False
                 orange_threshold = self.sensor_manager.orange_distance_threshold[sensor_name]
                 if distance > orange_threshold:
                     logger.info(f"{sensor_name} sensor indicates safe distance: {distance} cm")
                     return False
-            logger.info("All sensors detect close objects.")
+            logger.info("All sensors detect close distance. Car is in garge")
             return True
 
     def stop_parking_procedure(self):
