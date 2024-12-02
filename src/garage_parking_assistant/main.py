@@ -116,7 +116,7 @@ class GarageParkingAssistant:
                 self.measure_and_update_distances()
 
                 # Allow time for LEDs to turn on and stabilize
-                time.sleep(1.5)
+                time.sleep(1)
 
                 # Check sensor readings to determine if the car is present
                 car_in_garage = self.is_car_in_garage()
@@ -257,6 +257,7 @@ class GarageParkingAssistant:
 
             time.sleep(0.5)
         else:
+            logger.warning("I am about to stop parking procedure!")
             self.stop_parking_procedure()
             self.led_manager.clear_leds()
             logger.info("System disabled. LEDs turned off.")
