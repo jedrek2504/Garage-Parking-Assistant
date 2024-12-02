@@ -1,4 +1,4 @@
-# src/led.py
+# src/garage_parking_assistant/leds/led.py
 
 import board
 import neopixel

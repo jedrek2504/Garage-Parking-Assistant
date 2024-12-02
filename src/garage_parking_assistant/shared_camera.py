@@ -1,4 +1,4 @@
-# src/shared_camera.py
+# src/garage_parking_assistant/shared_camera.py
 
 from picamera2 import Picamera2
 import threading

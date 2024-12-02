@@ -1,8 +1,8 @@
-# src/led_manager.py
+# src/garage_parking_assistant/led_manager.py
 
 import time
 import logging
-from led import set_led_segment_color, clear_leds, pixels
+from leds.led import set_led_segment_color, clear_leds, pixels
 
 logger = logging.getLogger(__name__)
 
@@ -66,24 +66,23 @@ class LedManager:
         red_thresholds = self.sensor_manager.red_distance_threshold
         orange_thresholds = self.sensor_manager.orange_distance_threshold
 
-        with distances['lock']:
-            for sensor_name in ['front', 'left', 'right']:
-                distance = distances.get(sensor_name)
-                if distance is not None:
-                    # Determine color based on thresholds
-                    if distance <= red_thresholds[sensor_name]:
-                        color = (255, 0, 0)  # Red
-                    elif distance <= orange_thresholds[sensor_name]:
-                        color = (255, 165, 0)  # Orange
-                    else:
-                        color = (0, 255, 0)  # Green
-                    # Set LED segment color
-                    set_led_segment_color(sensor_name, *color, brightness=self.brightness, update_immediately=False)
-                    logger.debug(f"{sensor_name.capitalize()} LED segment set to color {color}.")
+        for sensor_name in ['front', 'left', 'right']:
+            distance = distances.get(sensor_name)
+            if distance is not None:
+                # Determine color based on thresholds
+                if distance <= red_thresholds[sensor_name]:
+                    color = (255, 0, 0)  # Red
+                elif distance <= orange_thresholds[sensor_name]:
+                    color = (255, 165, 0)  # Orange
                 else:
-                    # Turn off the LED segment if distance is None
-                    set_led_segment_color(sensor_name, 0, 0, 0, update_immediately=False)
-            pixels.show()
+                    color = (0, 255, 0)  # Green
+                # Set LED segment color
+                set_led_segment_color(sensor_name, *color, brightness=self.brightness, update_immediately=False)
+                logger.debug(f"{sensor_name.capitalize()} LED segment set to color {color}.")
+            else:
+                # Turn off the LED segment if distance is None
+                set_led_segment_color(sensor_name, 0, 0, 0, update_immediately=False)
+        pixels.show()
 
     def reset_leds_to_default(self, distances):
         # Update LEDs based on the current distances

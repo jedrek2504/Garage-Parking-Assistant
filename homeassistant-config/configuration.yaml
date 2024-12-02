@@ -1,12 +1,7 @@
-# configuration.yaml
+# homeassistant-config/configuration.yaml
 
-# Enable Mobile App Integration
-mobile_app:
-
-# MQTT Integration
 mqtt:
 
-# Sensors
   sensor:
     - name: "Front Parking Distance"
       state_topic: "garage/parking/sensor/front/distance"
@@ -67,8 +62,6 @@ mqtt:
       retain: false
       icon: "mdi:garage"
 
-
-# Input Numbers (for Thresholds and Brightness)
 input_number:
   red_distance_threshold_front:
     name: "Red Distance Threshold Front"
@@ -133,11 +126,9 @@ input_number:
     mode: slider
     icon: "mdi:brightness-6"
 
-# Input Boolean (for System Enable/Disable)
 input_boolean:
   user_is_home:
     name: "User is Home"
     initial: on
 
-# Include Automations from a Separate File
 automation: !include automations.yaml

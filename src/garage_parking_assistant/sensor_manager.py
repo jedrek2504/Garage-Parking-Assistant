@@ -1,8 +1,9 @@
-# src/sensor_manager.py
+# src/garage_parking_assistant/sensor_manager.py
 
 import time
 import logging
-from sensor import UltrasonicSensor, setup_sensors, cleanup
+import RPi.GPIO as GPIO
+from sensors.ultrasonic_sensor import UltrasonicSensor, SensorError
 
 logger = logging.getLogger(__name__)
 
@@ -30,19 +31,28 @@ class SensorManager:
                     logger.debug(f"Updated {color} threshold for {sensor} to {threshold}")
 
     def setup_sensors(self):
-        setup_sensors(self.sensors)
-        logger.info("Sensors have been set up.")
+        try:
+            GPIO.setmode(GPIO.BCM)
+            GPIO.setwarnings(False)
+            for sensor in self.sensors.values():
+                sensor.setup_sensor()
+            logger.info("All sensors setup complete.")
+        except Exception as e:
+            logger.exception("Failed to setup sensors.")
 
     def measure_distances(self, distances):
         # Measure all sensors
         for sensor_name in ['front', 'left', 'right']:
             sensor = self.sensors[sensor_name]
-            distance = sensor.measure_distance()
-            with distances['lock']:
+            try:
+                distance = sensor.measure_distance()
                 distances[sensor_name] = distance
-            logger.debug(f"{sensor_name.capitalize()} measured distance: {distance} cm")
+                logger.debug(f"{sensor_name.capitalize()} measured distance: {distance} cm")
+            except SensorError as e:
+                logger.error(f"Error measuring distance for {sensor_name}: {e}")
+                distances[sensor_name] = None
             time.sleep(0.05)  # Short delay to prevent sensor interference
 
     def cleanup(self):
-        cleanup()
-        logger.info("Sensors have been cleaned up.")
+        GPIO.cleanup()
+        logger.info("GPIO cleanup complete.")

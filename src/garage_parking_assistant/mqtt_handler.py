@@ -1,19 +1,22 @@
-# src/mqtt_handler.py
+# src/garage_parking_assistant/mqtt_handler.py
 
 import paho.mqtt.client as mqtt
-import json
 import logging
 
 logger = logging.getLogger(__name__)
 
 class MqttHandler:
-    def __init__(self, config, on_settings_update, on_garage_command, on_user_status_update, on_garage_state_update):
+    def __init__(self, config):
         self.client = mqtt.Client()
         self.config = config
-        self.on_settings_update = on_settings_update
-        self.on_garage_command = on_garage_command
-        self.on_user_status_update = on_user_status_update
-        self.on_garage_state_update = on_garage_state_update
+        self.observers = []
+
+    def register_observer(self, observer):
+        self.observers.append(observer)
+
+    def notify_observers(self, topic, payload):
+        for observer in self.observers:
+            observer.update(topic, payload)
 
     def connect(self):
         self.client.on_message = self.on_message
@@ -22,7 +25,7 @@ class MqttHandler:
             (self.config.MQTT_TOPICS["settings"], 0),
             (self.config.MQTT_TOPICS["garage_command"], 0),
             (self.config.MQTT_TOPICS["user_status"], 0),
-            (self.config.MQTT_TOPICS["garage_state"], 0),
+            (self.config.MQTT_TOPICS["garage_state"], 0)
         ])
         self.client.loop_start()
         logger.info("MQTT client connected and subscribed to topics.")
@@ -30,32 +33,15 @@ class MqttHandler:
     def on_message(self, client, userdata, msg):
         payload = msg.payload.decode()
         logger.info(f"Received MQTT message on {msg.topic}: {payload}")
-        try:
-            if msg.topic == self.config.MQTT_TOPICS["settings"]:
-                data = json.loads(payload)
-                logger.info(f"Settings received: {data}")
-                self.on_settings_update(data)
-                logger.info("Settings updated from MQTT message.")
-            elif msg.topic == self.config.MQTT_TOPICS["garage_command"]:
-                self.on_garage_command(payload)
-                logger.info(f"Garage command received: {payload}")
-            elif msg.topic == self.config.MQTT_TOPICS["user_status"]:
-                self.on_user_status_update(payload)
-                logger.info(f"User status updated: {payload}")
-            elif msg.topic == self.config.MQTT_TOPICS["garage_state"]:
-                self.on_garage_state_update(payload)
-                logger.info(f"Garage door state updated: {payload}")
-        except json.JSONDecodeError:
-            logger.error("Invalid JSON payload received.")
+        self.notify_observers(msg.topic, payload)
 
     def publish_distances(self, distances):
-        with distances['lock']:
-            for sensor_name in ['front', 'left', 'right']:
-                distance = distances.get(sensor_name)
-                if distance is not None:
-                    topic = f"{self.config.MQTT_BASE_TOPIC}/sensor/{sensor_name}/distance"
-                    self.client.publish(topic, str(distance))
-                    logger.info(f"Published {sensor_name} distance: {distance} cm to topic {topic}")
+        for sensor_name in ['front', 'left', 'right']:
+            distance = distances.get(sensor_name)
+            if distance is not None:
+                topic = f"{self.config.MQTT_BASE_TOPIC}/sensor/{sensor_name}/distance"
+                self.client.publish(topic, str(distance))
+                logger.debug(f"Published {sensor_name} distance: {distance} cm to topic {topic}")
 
     def publish_garage_state(self, is_open):
         state = "open" if is_open else "closed"
@@ -80,11 +66,6 @@ class MqttHandler:
         self.client.publish(topic, state, retain=True)
         logger.info(f"Published system enabled state: {state} to topic {topic}")
 
-    def disconnect(self):
-        self.client.loop_stop()
-        self.client.disconnect()
-        logger.info("MQTT client disconnected.")
-
     def send_garage_command(self, command):
         """Send a command to the garage door ('OPEN' or 'CLOSE')."""
         if command.upper() in ["OPEN", "CLOSE"]:
@@ -92,3 +73,8 @@ class MqttHandler:
             logger.info(f"Sent garage command: {command.upper()} to topic {self.config.MQTT_TOPICS['garage_command']}")
         else:
             logger.error(f"Invalid garage command: {command}")
+
+    def disconnect(self):
+        self.client.loop_stop()
+        self.client.disconnect()
+        logger.info("MQTT client disconnected.")

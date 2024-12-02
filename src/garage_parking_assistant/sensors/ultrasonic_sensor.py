@@ -1,10 +1,13 @@
-# src/sensor.py
+# src/garage_parking_assistant/sensors/ultrasonic_sensor.py
 
 import time
 import RPi.GPIO as GPIO
 import logging
 
 logger = logging.getLogger(__name__)
+
+class SensorError(Exception):
+    pass
 
 class UltrasonicSensor:
     def __init__(self, trig_pin, echo_pin, name='Sensor'):
@@ -35,7 +38,7 @@ class UltrasonicSensor:
                 pulse_start = time.time()
                 if pulse_start - timeout_start > 0.05:
                     logger.warning(f"{self.name}: Timeout waiting for pulse to start.")
-                    return None
+                    raise SensorError(f"{self.name}: Timeout waiting for pulse to start.")
 
             # Wait for the pulse to end
             timeout_end = time.time()
@@ -43,32 +46,18 @@ class UltrasonicSensor:
                 pulse_end = time.time()
                 if pulse_end - timeout_end > 0.05:
                     logger.warning(f"{self.name}: Timeout waiting for pulse to end.")
-                    return None
+                    raise SensorError(f"{self.name}: Timeout waiting for pulse to end.")
 
             pulse_duration = pulse_end - pulse_start
 
             # Validate pulse_duration
             if pulse_duration <= 0 or pulse_duration > 0.04:  # Max 40 ms
                 logger.warning(f"{self.name}: Invalid pulse duration: {pulse_duration}")
-                return None
+                raise SensorError(f"{self.name}: Invalid pulse duration")
 
             distance = pulse_duration * 17150
             logger.debug(f"{self.name}: Measured distance: {distance:.2f} cm")
             return round(distance, 2)
         except Exception as e:
             logger.exception(f"{self.name}: Failed to measure distance.")
-            return None
-
-def setup_sensors(sensors):
-    try:
-        GPIO.setmode(GPIO.BCM)
-        GPIO.setwarnings(False)
-        for sensor in sensors.values():
-            sensor.setup_sensor()
-        logger.info("All sensors setup complete.")
-    except Exception as e:
-        logger.exception("Failed to setup sensors.")
-
-def cleanup():
-    GPIO.cleanup()
-    logger.info("GPIO cleanup complete.")
+            raise SensorError(f"{self.name}: {str(e)}")
