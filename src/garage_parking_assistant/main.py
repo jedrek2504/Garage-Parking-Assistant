@@ -257,7 +257,6 @@ class GarageParkingAssistant:
 
             time.sleep(0.5)
         else:
-            logger.warning("I am about to stop parking procedure!")
             self.stop_parking_procedure()
             self.led_manager.clear_leds()
             logger.info("System disabled. LEDs turned off.")
