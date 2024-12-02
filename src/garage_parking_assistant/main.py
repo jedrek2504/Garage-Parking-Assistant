@@ -14,7 +14,7 @@ from camera_stream import run_flask_app
 
 # Configure logging
 logging.basicConfig(
-    level=logging.DEBUG,  # Set to DEBUG to capture detailed logs
+    level=logging.INFO,
     format='%(asctime)s [%(levelname)s] [%(name)s] %(message)s',
     handlers=[
         logging.FileHandler('garage_parking_assistant.log', mode='w')
@@ -82,6 +82,10 @@ class GarageParkingAssistant:
         else:
             logger.warning(f"Unknown garage command received: {command}")
 
+        # Update system enabled state after changing garage_door_open
+        self.update_system_enabled_state()
+
+        # Publish the garage door state
         self.mqtt_handler.publish_garage_state(self.garage_door_open)
         logger.info(f"Garage door state updated: {'open' if self.garage_door_open else 'closed'}")
 
@@ -112,7 +116,7 @@ class GarageParkingAssistant:
                 self.measure_and_update_distances()
 
                 # Allow time for LEDs to turn on and stabilize
-                time.sleep(5)
+                time.sleep(1.5)
 
                 # Check sensor readings to determine if the car is present
                 car_in_garage = self.is_car_in_garage()
@@ -129,7 +133,7 @@ class GarageParkingAssistant:
 
                 self.parking_procedure_active = True
             else:
-                logger.debug("Parking procedure already active.")
+                logger.info("Parking procedure already active.")
 
     def is_car_in_garage(self):
         with self.distances_lock:
@@ -157,7 +161,7 @@ class GarageParkingAssistant:
                 # Reset red proximity timer
                 self.red_proximity_start_time = None
             else:
-                logger.debug("Parking procedure not active.")
+                logger.info("Parking procedure not active.")
 
     def on_ai_detection(self, object_detected):
         if object_detected:
@@ -249,7 +253,6 @@ class GarageParkingAssistant:
             else:
                 self.measure_and_update_distances()
                 self.mqtt_handler.publish_distances(self.distances)
-                self.mqtt_handler.publish_process(self.process if self.process else "IDLE")
                 self.handle_garage_closure()
 
             time.sleep(0.5)

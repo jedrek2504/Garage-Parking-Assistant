@@ -25,7 +25,7 @@ class MqttHandler:
             (self.config.MQTT_TOPICS["settings"], 0),
             (self.config.MQTT_TOPICS["garage_command"], 0),
             (self.config.MQTT_TOPICS["user_status"], 0),
-            (self.config.MQTT_TOPICS["garage_state"], 0),
+            (self.config.MQTT_TOPICS["garage_state"], 0)
         ])
         self.client.loop_start()
         logger.info("MQTT client connected and subscribed to topics.")
@@ -41,7 +41,7 @@ class MqttHandler:
             if distance is not None:
                 topic = f"{self.config.MQTT_BASE_TOPIC}/sensor/{sensor_name}/distance"
                 self.client.publish(topic, str(distance))
-                logger.info(f"Published {sensor_name} distance: {distance} cm to topic {topic}")
+                logger.debug(f"Published {sensor_name} distance: {distance} cm to topic {topic}")
 
     def publish_garage_state(self, is_open):
         state = "open" if is_open else "closed"
