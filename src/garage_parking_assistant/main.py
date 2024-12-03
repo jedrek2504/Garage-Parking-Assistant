@@ -99,18 +99,26 @@ class GarageParkingAssistant:
 
     def on_garage_command(self, command):
         logger.info(f"Received garage command: {command}")
+        command = command.upper()
         if command == "OPEN":
-            self.garage_door_open = True
-            self.start_parking_procedure()
+            if self.user_is_home:
+                logger.info("User is home. Proceeding to open the garage door.")
+                self.garage_door_open = True
+                self.start_parking_procedure()
+                self.update_system_enabled_state()
+                self.mqtt_handler.publish_garage_state(self.garage_door_open)
+                logger.info(f"Garage door state updated: {'open' if self.garage_door_open else 'closed'}")
+            else:
+                logger.warning("Attempt to open garage door denied. User is not home.")
+                self.mqtt_handler.publish_unauthorized_access_attempt()
         elif command == "CLOSE":
             self.garage_door_open = False
             self.stop_parking_procedure()
+            self.update_system_enabled_state()
+            self.mqtt_handler.publish_garage_state(self.garage_door_open)
+            logger.info(f"Garage door state updated: {'open' if self.garage_door_open else 'closed'}")
         else:
             logger.warning(f"Unknown garage command received: {command}")
-
-        self.update_system_enabled_state()
-        self.mqtt_handler.publish_garage_state(self.garage_door_open)
-        logger.info(f"Garage door state updated: {'open' if self.garage_door_open else 'closed'}")
 
     def update_system_enabled_state(self):
         previous_state = self.system_enabled
@@ -142,7 +150,7 @@ class GarageParkingAssistant:
                 if distance > orange_threshold:
                     logger.info(f"{sensor_name} sensor indicates safe distance: {distance} cm")
                     return False
-            logger.info("All sensors detect close distance. Car is in garge")
+            logger.info("All sensors detect close distance. Car is in garage")
             return True
 
     def start_parking_procedure(self):

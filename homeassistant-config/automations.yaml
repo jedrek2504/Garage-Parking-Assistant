@@ -69,3 +69,15 @@
         title: 'ALARM: Otwarta wiata garażowa'
         message: 'System wykrył, że znajdujesz się poza domem, a wiata garażowa jest otwarta.'
   mode: single
+
+- alias: Notify on Unauthorized Garage Door Access Attempt
+  trigger:
+    - platform: mqtt
+      topic: "garage/parking/unauthorized_access"
+  action:
+    - service: notify.mobile_app_iphone_jedrzej
+      data:
+        title: "Security Alert: Unauthorized Garage Door Access Attempt"
+        message: "An attempt was made to open the garage door while you were not home."
+  id: notify_on_unauthorized_garage_access
+  mode: single

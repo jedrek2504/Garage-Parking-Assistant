@@ -68,11 +68,19 @@ class MqttHandler:
 
     def send_garage_command(self, command):
         """Send a command to the garage door ('OPEN' or 'CLOSE')."""
-        if command.upper() in ["OPEN", "CLOSE"]:
-            self.client.publish(self.config.MQTT_TOPICS["garage_command"], command.upper())
-            logger.info(f"Sent garage command: {command.upper()} to topic {self.config.MQTT_TOPICS['garage_command']}")
+        command = command.upper()
+        if command in ["OPEN", "CLOSE"]:
+            self.client.publish(self.config.MQTT_TOPICS["garage_command"], command)
+            logger.info(f"Sent garage command: {command} to topic {self.config.MQTT_TOPICS['garage_command']}")
         else:
             logger.error(f"Invalid garage command: {command}")
+
+    def publish_unauthorized_access_attempt(self):
+        """Publish a notification about an unauthorized attempt to open the garage door."""
+        topic = "garage/parking/unauthorized_access"
+        payload = "Attempt to open garage door denied. User is not home."
+        self.client.publish(topic, payload, retain=False)
+        logger.warning(f"Published unauthorized access attempt to topic {topic}: {payload}")
 
     def disconnect(self):
         self.client.loop_stop()
