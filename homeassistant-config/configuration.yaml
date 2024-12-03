@@ -31,7 +31,7 @@ mqtt:
       state_topic: "garage/parking/process_state"
       icon: "mdi:garage"
       unique_id: "sensor_garage_process_state"
-
+      
 # Binary Sensors
   binary_sensor:
     - name: "User Is Home"
