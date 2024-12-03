@@ -191,3 +191,7 @@ homeassistant-config/www/
 # Pliki video i zdjęcia
 *.jpg
 *.mp4
+
+# Personal stuff
+prompt.txt
+generate_prompt.sh
