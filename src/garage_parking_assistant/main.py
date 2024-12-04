@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 
 # Adjust logging for picamera2
 logging.getLogger('picamera2.picamera2').setLevel(logging.INFO)
+logging.getLogger('picamera2').setLevel(logging.INFO)
 
 class GarageParkingAssistant:
     def __init__(self):
