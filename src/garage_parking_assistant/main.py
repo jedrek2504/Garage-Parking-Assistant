@@ -67,8 +67,6 @@ class GarageParkingAssistant:
             self.sensor_manager.update_thresholds(data)
             brightness = data.get("brightness", self.led_manager.brightness)
             self.led_manager.update_brightness(brightness)
-            self.system_enabled = data.get("enabled", self.system_enabled)
-            logger.info(f"System enabled set to: {self.system_enabled}")
         except json.JSONDecodeError:
             logger.error("Failed to decode settings payload")
 
