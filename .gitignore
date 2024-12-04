@@ -194,4 +194,6 @@ homeassistant-config/www/
 
 # Personal stuff
 prompt.txt
+diff_prompt.txt
 generate_prompt.sh
+generate_diff.sh

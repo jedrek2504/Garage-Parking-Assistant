@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 
 # Adjust logging for picamera2
 logging.getLogger('picamera2.picamera2').setLevel(logging.INFO)
+logging.getLogger('picamera2').setLevel(logging.INFO)
 
 class GarageParkingAssistant:
     def __init__(self):
@@ -37,7 +38,7 @@ class GarageParkingAssistant:
         self.parking_procedure_active = False
         self.garage_door_open = False
         self.user_is_home = False
-        self.process = None  # "parking", "exiting", or None
+        self.process = None  # "PARKING", "EXITING", or None
         self.close_command_sent = False
         self.mqtt_handler = MqttHandler(self.config)
         self.mqtt_handler.register_observer(self)
@@ -66,8 +67,6 @@ class GarageParkingAssistant:
             self.sensor_manager.update_thresholds(data)
             brightness = data.get("brightness", self.led_manager.brightness)
             self.led_manager.update_brightness(brightness)
-            self.system_enabled = data.get("enabled", self.system_enabled)
-            logger.info(f"System enabled set to: {self.system_enabled}")
         except json.JSONDecodeError:
             logger.error("Failed to decode settings payload")
 
@@ -90,12 +89,12 @@ class GarageParkingAssistant:
         if object_detected:
             logger.info("AI detected an obstacle. Initiating LED blinking.")
             self.led_manager.start_blinking()
-            self.mqtt_handler.publish_ai_detection(True)
+            self.mqtt_handler.publish_ai_detection("DETECTED")
             blink_thread = threading.Thread(target=self.handle_blinking, daemon=True)
             blink_thread.start()
         else:
             logger.info("AI detected no obstacle.")
-            self.mqtt_handler.publish_ai_detection(False)
+            self.mqtt_handler.publish_ai_detection("CLEAR")
 
     def on_garage_command(self, command):
         logger.info(f"Received garage command: {command}")
@@ -165,11 +164,11 @@ class GarageParkingAssistant:
                 car_in_garage = self.is_car_in_garage()
 
                 if car_in_garage:
-                    self.process = "exiting"
+                    self.process = "EXITING"
                     logger.info("Process identified: Exiting the garage.")
                     self.mqtt_handler.publish_process(self.process)
                 else:
-                    self.process = "parking"
+                    self.process = "PARKING"
                     logger.info("Process identified: Parking procedure.")
                     self.mqtt_handler.publish_process(self.process)
                     self.ai_module.start()
@@ -187,7 +186,8 @@ class GarageParkingAssistant:
                 self.mqtt_handler.publish_process("IDLE")
                 self.ai_module.stop()
                 self.close_command_sent = False
-                self.red_proximity_start_time = None # Reset red proximity timer
+                self.red_proximity_start_time = None
+                self.mqtt_handler.publish_ai_detection("IDLE")
             else:
                 logger.info("Parking procedure not active.")
 
@@ -218,11 +218,11 @@ class GarageParkingAssistant:
                     elapsed_time = time.time() - self.red_proximity_start_time
                     logger.debug(f"Car has been within red proximity for {elapsed_time:.2f} seconds.")
                     if (elapsed_time >= 5 and
-                        self.process == "parking" and
+                        self.process == "PARKING" and
                         not self.close_command_sent):
                         logger.debug(
                             f"Front sensor detected red distance ({front_distance} cm) "
-                            f"for {elapsed_time:.2f} seconds while in 'parking' state. Initiating garage door closure."
+                            f"for {elapsed_time:.2f} seconds while in 'PARKING' state. Initiating garage door closure."
                         )
                         logger.info("Initiating garage door closure.")
 
@@ -256,7 +256,7 @@ class GarageParkingAssistant:
         else:
             self.stop_parking_procedure()
             self.led_manager.clear_leds()
-            logger.info("System disabled. LEDs turned off.")
+            logger.info("System disabled.")
             time.sleep(5)
 
     def start_flask_app(self):
