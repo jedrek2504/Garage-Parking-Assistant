@@ -48,11 +48,10 @@ class MqttHandler:
         self.client.publish(self.config.MQTT_TOPICS["garage_state"], state, retain=True)
         logger.info(f"Published garage door state: {state} to topic {self.config.MQTT_TOPICS['garage_state']}")
 
-    def publish_ai_detection(self, obstacle_detected):
+    def publish_ai_detection(self, ai_detection):
         topic = self.config.MQTT_TOPICS["ai_detection"]
-        payload = "DETECTED" if obstacle_detected else "CLEAR"
-        self.client.publish(topic, payload, retain=True)
-        logger.info(f"Published AI detection: {payload} to topic {topic}")
+        self.client.publish(topic, ai_detection, retain=True)
+        logger.info(f"Published AI detection state: {ai_detection} to topic {topic}")
 
     def publish_process(self, process):
         topic = self.config.MQTT_TOPICS["process_state"]

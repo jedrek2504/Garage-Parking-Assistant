@@ -90,12 +90,12 @@ class GarageParkingAssistant:
         if object_detected:
             logger.info("AI detected an obstacle. Initiating LED blinking.")
             self.led_manager.start_blinking()
-            self.mqtt_handler.publish_ai_detection(True)
+            self.mqtt_handler.publish_ai_detection("DETECTED")
             blink_thread = threading.Thread(target=self.handle_blinking, daemon=True)
             blink_thread.start()
         else:
             logger.info("AI detected no obstacle.")
-            self.mqtt_handler.publish_ai_detection(False)
+            self.mqtt_handler.publish_ai_detection("CLEAR")
 
     def on_garage_command(self, command):
         logger.info(f"Received garage command: {command}")
@@ -187,7 +187,8 @@ class GarageParkingAssistant:
                 self.mqtt_handler.publish_process("IDLE")
                 self.ai_module.stop()
                 self.close_command_sent = False
-                self.red_proximity_start_time = None # Reset red proximity timer
+                self.red_proximity_start_time = None
+                self.mqtt_handler.publish_ai_detection("IDLE")
             else:
                 logger.info("Parking procedure not active.")
 
@@ -256,7 +257,7 @@ class GarageParkingAssistant:
         else:
             self.stop_parking_procedure()
             self.led_manager.clear_leds()
-            logger.info("System disabled. LEDs turned off.")
+            logger.info("System disabled.")
             time.sleep(5)
 
     def start_flask_app(self):
