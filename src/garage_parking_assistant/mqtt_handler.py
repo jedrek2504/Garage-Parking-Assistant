@@ -38,10 +38,17 @@ class MqttHandler:
     def publish_distances(self, distances):
         for sensor_name in ['front', 'left', 'right']:
             distance = distances.get(sensor_name)
+            distance_topic = f"{self.config.MQTT_BASE_TOPIC}/sensor/{sensor_name}/distance"
+            availability_topic = f"{self.config.MQTT_BASE_TOPIC}/sensor/{sensor_name}/availability"
+            
             if distance is not None:
-                topic = f"{self.config.MQTT_BASE_TOPIC}/sensor/{sensor_name}/distance"
-                self.client.publish(topic, str(distance))
-                logger.debug(f"Published {sensor_name} distance: {distance} cm to topic {topic}")
+                payload = str(distance)
+                self.client.publish(distance_topic, payload)
+                self.client.publish(availability_topic, "online")
+            else:
+                # When distance is None, mark sensor as offline
+                self.client.publish(availability_topic, "offline")
+                logger.debug(f"Published {sensor_name} availability: offline to topic {availability_topic}")
 
     def publish_garage_state(self, is_open):
         state = "open" if is_open else "closed"
