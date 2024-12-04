@@ -195,6 +195,7 @@ class GarageParkingAssistant:
         with self.distances_lock:
             self.sensor_manager.measure_distances(self.distances)
             self.led_manager.update_leds(self.distances)
+            self.mqtt_handler.publish_distances(self.distances)
 
     def handle_automatic_garage_closure(self):
         with self.distances_lock:
@@ -244,16 +245,21 @@ class GarageParkingAssistant:
 
     def main_loop(self):
         if self.system_enabled:
+            # System is enabled
             if self.led_manager.is_blinking():
                 logger.debug("Blinking active. Skipping sensor measurements and MQTT updates.")
                 self.led_manager.update_leds(self.distances)
             else:
                 self.measure_and_update_distances()
-                self.mqtt_handler.publish_distances(self.distances)
                 self.handle_automatic_garage_closure()
 
             time.sleep(0.5)
         else:
+            # System is disabled
+            with self.distances_lock:
+                # Set all distances to None
+                self.distances = {'front': None, 'left': None, 'right': None}
+                self.mqtt_handler.publish_distances(self.distances)
             self.stop_parking_procedure()
             self.led_manager.clear_leds()
             logger.info("System disabled.")
