@@ -81,3 +81,31 @@
         message: "An attempt was made to open the garage door while you were not home."
   id: notify_on_unauthorized_garage_access
   mode: single
+
+- alias: Notify When Obstacle Detected
+  description: Send a mobile notification when an obstacle is detected in the garage.
+  trigger:
+    - platform: state
+      entity_id: sensor.ai_obstacle_detection
+      to: "DETECTED"
+  action:
+    - service: notify.mobile_app_iphone_jedrzej
+      data:
+        title: "Garage Alert 🚨"
+        message: "An obstacle has been detected in your garage."
+  mode: single
+  id: notify_obstacle_detected
+
+- alias: Notify When Obstacle Removed
+  trigger:
+    - platform: state
+      entity_id: sensor.ai_obstacle_detection
+      from: "DETECTED"
+      to: "CLEAR"
+  action:
+    - service: notify.mobile_app_iphone_jedrzej
+      data:
+        title: "Garage Update ✅"
+        message: "The obstacle in your garage has been removed."
+  mode: single
+  id: notify_obstacle_removed
