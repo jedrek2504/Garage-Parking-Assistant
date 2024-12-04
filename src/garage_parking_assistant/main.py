@@ -38,7 +38,7 @@ class GarageParkingAssistant:
         self.parking_procedure_active = False
         self.garage_door_open = False
         self.user_is_home = False
-        self.process = None  # "parking", "exiting", or None
+        self.process = None  # "PARKING", "EXITING", or None
         self.close_command_sent = False
         self.mqtt_handler = MqttHandler(self.config)
         self.mqtt_handler.register_observer(self)
@@ -164,11 +164,11 @@ class GarageParkingAssistant:
                 car_in_garage = self.is_car_in_garage()
 
                 if car_in_garage:
-                    self.process = "exiting"
+                    self.process = "EXITING"
                     logger.info("Process identified: Exiting the garage.")
                     self.mqtt_handler.publish_process(self.process)
                 else:
-                    self.process = "parking"
+                    self.process = "PARKING"
                     logger.info("Process identified: Parking procedure.")
                     self.mqtt_handler.publish_process(self.process)
                     self.ai_module.start()
@@ -218,11 +218,11 @@ class GarageParkingAssistant:
                     elapsed_time = time.time() - self.red_proximity_start_time
                     logger.debug(f"Car has been within red proximity for {elapsed_time:.2f} seconds.")
                     if (elapsed_time >= 5 and
-                        self.process == "parking" and
+                        self.process == "PARKING" and
                         not self.close_command_sent):
                         logger.debug(
                             f"Front sensor detected red distance ({front_distance} cm) "
-                            f"for {elapsed_time:.2f} seconds while in 'parking' state. Initiating garage door closure."
+                            f"for {elapsed_time:.2f} seconds while in 'PARKING' state. Initiating garage door closure."
                         )
                         logger.info("Initiating garage door closure.")
 
