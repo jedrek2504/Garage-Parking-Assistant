@@ -154,8 +154,7 @@ class GarageParkingAssistant:
             previous_state = self.system_enabled
             self.system_enabled = self.user_is_home and self.garage_door_open
             logger.info(
-                f"update_system_enabled_state: user_is_home={self.user_is_home}, garage_door_open={self.garage_door_open}, system_enabled={self.system_enabled}"
-            )
+                f"update_system_enabled_state: user_is_home={self.user_is_home}, garage_door_open={self.garage_door_open}, system_enabled={self.system_enabled}")
             if self.system_enabled != previous_state:
                 logger.info(f"System enabled state changed to: {self.system_enabled}")
                 self.mqtt_handler.publish_system_enabled(self.system_enabled)
@@ -183,12 +182,6 @@ class GarageParkingAssistant:
             raise GarageParkingAssistantError("Failed to handle garage door state update") from e
 
     def is_car_in_garage(self):
-        """
-        Determines if a car is present in the garage based on sensor distances.
-
-        Returns:
-            bool: True if a car is detected, False otherwise.
-        """
         try:
             with self.distances_lock:
                 for sensor_name in ['front', 'left', 'right']:
@@ -282,8 +275,7 @@ class GarageParkingAssistant:
             red_threshold_front = self.sensor_manager.red_distance_threshold.get('front')
 
             logger.debug(
-                f"handle_garage_closure: front_distance={front_distance}, red_threshold_front={red_threshold_front}"
-            )
+                f"handle_garage_closure: front_distance={front_distance}, red_threshold_front={red_threshold_front}")
 
             if (front_distance is not None and
                     front_distance > 0 and
