@@ -20,7 +20,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Adjust junk logging
+# Adjust logging levels for less verbosity
 logging.getLogger('picamera2.picamera2').setLevel(logging.INFO)
 logging.getLogger('picamera2').setLevel(logging.INFO)
 logging.getLogger('werkzeug').setLevel(logging.WARNING)
@@ -62,8 +62,6 @@ class GarageParkingAssistant:
                 self.on_garage_command(payload)
             elif topic == self.config.MQTT_TOPICS["user_status"]:
                 self.on_user_status_update(payload)
-            elif topic == self.config.MQTT_TOPICS["garage_state"]:
-                self.on_garage_state_update(payload)
             else:
                 logger.warning(f"Unknown MQTT topic: {topic}")
         except Exception as e:
@@ -185,18 +183,6 @@ class GarageParkingAssistant:
         except Exception as e:
             logger.exception("Error updating user status.")
             raise GarageParkingAssistantError("User status update error.") from e
-
-    def on_garage_state_update(self, state):
-        """
-        Update garage door state from MQTT.
-        """
-        try:
-            logger.info(f"Garage door state updated to: {state}")
-            self.garage_door_open = (state.lower() == 'open')
-            self.update_system_enabled_state()
-        except Exception as e:
-            logger.exception("Error updating garage door state.")
-            raise GarageParkingAssistantError("Garage state update error.") from e
 
     def is_car_in_garage(self):
         """
