@@ -5,6 +5,7 @@ from shared_camera import SharedCamera
 import cv2
 import logging
 import time
+from exceptions import CameraError
 
 def run_flask_app():
     # Configure logging for the Flask app to log to console
@@ -20,9 +21,13 @@ def run_flask_app():
 
     app = Flask(__name__)
 
-    # Get the shared camera instance
-    picam2 = SharedCamera.get_instance()
-    logger.info("Camera accessed by Flask app.")
+    try:
+        # Get the shared camera instance
+        picam2 = SharedCamera.get_instance()
+        logger.info("Camera accessed by Flask app.")
+    except CameraError as e:
+        logger.critical(f"Camera access failed: {e}")
+        return  # Exit the Flask app if camera initialization fails
 
     def gen_frames():
         try:
@@ -52,10 +57,12 @@ def run_flask_app():
         except GeneratorExit:
             # Handle generator exit when client disconnects
             logger.info("Client disconnected from video feed.")
+        except CameraError as e:
+            logger.critical(f"Camera error during frame generation: {e}")
         except Exception as e:
             logger.exception("Exception in gen_frames.")
         finally:
-            pass  # Camera will be stopped in the main function
+            logger.info("Frame generation terminated.")
 
     @app.route('/video_feed')
     def video_feed():

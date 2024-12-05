@@ -3,7 +3,8 @@
 import time
 import logging
 import RPi.GPIO as GPIO
-from sensors.ultrasonic_sensor import UltrasonicSensor, SensorError
+from sensors.ultrasonic_sensor import UltrasonicSensor
+from exceptions import SensorError, GarageParkingAssistantError
 
 logger = logging.getLogger(__name__)
 
@@ -19,16 +20,20 @@ class SensorManager:
         self.orange_distance_threshold = self.config.ORANGE_DISTANCE_THRESHOLD.copy()
 
     def update_thresholds(self, data):
-        for color in ['red', 'orange']:
-            for sensor in ['front', 'left', 'right']:
-                key = f"{color}_distance_threshold_{sensor}"
-                if key in data:
-                    threshold = data[key]
-                    if color == 'red':
-                        self.red_distance_threshold[sensor] = threshold
-                    else:
-                        self.orange_distance_threshold[sensor] = threshold
-                    logger.debug(f"Updated {color} threshold for {sensor} to {threshold}")
+        try:
+            for color in ['red', 'orange']:
+                for sensor in ['front', 'left', 'right']:
+                    key = f"{color}_distance_threshold_{sensor}"
+                    if key in data:
+                        threshold = data[key]
+                        if color == 'red':
+                            self.red_distance_threshold[sensor] = threshold
+                        else:
+                            self.orange_distance_threshold[sensor] = threshold
+                        logger.debug(f"Updated {color} threshold for {sensor} to {threshold}")
+        except Exception as e:
+            logger.exception("Failed to update thresholds.")
+            raise GarageParkingAssistantError("Failed to update sensor thresholds") from e
 
     def setup_sensors(self):
         try:
@@ -39,6 +44,7 @@ class SensorManager:
             logger.info("All sensors setup complete.")
         except Exception as e:
             logger.exception("Failed to setup sensors.")
+            raise SensorError("SensorManager", "Failed to setup sensors") from e
 
     def measure_distances(self, distances):
         # Measure all sensors
@@ -51,8 +57,15 @@ class SensorManager:
             except SensorError as e:
                 logger.error(f"Error measuring distance for {sensor_name}: {e}")
                 distances[sensor_name] = None
+            except Exception as e:
+                logger.exception(f"Unexpected error measuring distance for {sensor_name}.")
+                distances[sensor_name] = None
             time.sleep(0.05)  # Short delay to prevent sensor interference
 
     def cleanup(self):
-        GPIO.cleanup()
-        logger.info("GPIO cleanup complete.")
+        try:
+            GPIO.cleanup()
+            logger.info("GPIO cleanup complete.")
+        except Exception as e:
+            logger.exception("Failed to cleanup GPIO.")
+            raise GarageParkingAssistantError("Failed to cleanup GPIO") from e
