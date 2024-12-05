@@ -59,7 +59,8 @@ class MqttHandler:
             else:
                 # When distance is None, mark sensor as offline
                 self.client.publish(availability_topic, "offline")
-                logger.warning(f"Sensor '{sensor_name}' is offline. Published to topic {availability_topic}")
+                # Keep it commented unless needed -> too much junk.
+                # logger.debug(f"Sensor '{sensor_name}' is offline. Published to topic {availability_topic}")
 
     def publish_garage_state(self, is_open):
         state = "open" if is_open else "closed"

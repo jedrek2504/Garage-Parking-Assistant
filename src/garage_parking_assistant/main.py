@@ -26,6 +26,7 @@ logger = logging.getLogger(__name__)
 logging.getLogger('picamera2.picamera2').setLevel(logging.INFO)
 logging.getLogger('picamera2').setLevel(logging.INFO)
 
+
 class GarageParkingAssistant:
     def __init__(self):
         try:
@@ -85,7 +86,7 @@ class GarageParkingAssistant:
             raise GarageParkingAssistantError("Unexpected error while updating settings") from e
 
     def handle_blinking(self):
-        blink_duration = 10 # Blinking set to 10s
+        blink_duration = 10  # Blinking set to 10s
         start_time = time.time()
         while time.time() - start_time < blink_duration:
             if not self.parking_procedure_active:
@@ -152,7 +153,8 @@ class GarageParkingAssistant:
         try:
             previous_state = self.system_enabled
             self.system_enabled = self.user_is_home and self.garage_door_open
-            logger.info(f"update_system_enabled_state: user_is_home={self.user_is_home}, garage_door_open={self.garage_door_open}, system_enabled={self.system_enabled}")
+            logger.info(
+                f"update_system_enabled_state: user_is_home={self.user_is_home}, garage_door_open={self.garage_door_open}, system_enabled={self.system_enabled}")
             if self.system_enabled != previous_state:
                 logger.info(f"System enabled state changed to: {self.system_enabled}")
                 self.mqtt_handler.publish_system_enabled(self.system_enabled)
@@ -272,11 +274,12 @@ class GarageParkingAssistant:
                 front_distance = self.distances.get('front')
             red_threshold_front = self.sensor_manager.red_distance_threshold.get('front')
 
-            logger.debug(f"handle_garage_closure: front_distance={front_distance}, red_threshold_front={red_threshold_front}")
+            logger.debug(
+                f"handle_garage_closure: front_distance={front_distance}, red_threshold_front={red_threshold_front}")
 
             if (front_distance is not None and
-                front_distance > 0 and
-                red_threshold_front is not None):
+                    front_distance > 0 and
+                    red_threshold_front is not None):
 
                 if front_distance <= red_threshold_front:
                     # Car is within red proximity
@@ -289,8 +292,8 @@ class GarageParkingAssistant:
                         elapsed_time = time.time() - self.red_proximity_start_time
                         logger.debug(f"Car has been within red proximity for {elapsed_time:.2f} seconds.")
                         if (elapsed_time >= 5 and
-                            self.process == "PARKING" and
-                            not self.close_command_sent):
+                                self.process == "PARKING" and
+                                not self.close_command_sent):
                             logger.debug(
                                 f"Front sensor detected red distance ({front_distance} cm) "
                                 f"for {elapsed_time:.2f} seconds while in 'PARKING' state. Initiating garage door closure."
@@ -318,15 +321,6 @@ class GarageParkingAssistant:
         except Exception as e:
             logger.exception("Unexpected error during handle_automatic_garage_closure.")
             raise GarageParkingAssistantError("Unexpected error during handle_automatic_garage_closure") from e
-
-    def start_flask_app(self):
-        try:
-            flask_thread = threading.Thread(target=run_flask_app, daemon=True)
-            flask_thread.start()
-            logger.info("Flask app started in a separate thread.")
-        except Exception as e:
-            logger.exception("Failed to start Flask app.")
-            raise GarageParkingAssistantError("Failed to start Flask app") from e
 
     def main_loop(self):
         try:
@@ -359,6 +353,15 @@ class GarageParkingAssistant:
         except Exception as e:
             logger.exception("Unexpected error in main loop.")
 
+    def start_flask_app(self):
+        try:
+            flask_thread = threading.Thread(target=run_flask_app, daemon=True)
+            flask_thread.start()
+            logger.info("Flask app started in a separate thread.")
+        except Exception as e:
+            logger.exception("Failed to start Flask app.")
+            raise GarageParkingAssistantError("Failed to start Flask app") from e
+
     def run(self):
         try:
             self.sensor_manager.setup_sensors()
@@ -382,6 +385,7 @@ class GarageParkingAssistant:
                 logger.info("Resources cleaned up.")
             except Exception as e:
                 logger.exception("Failed during cleanup.")
+
 
 if __name__ == "__main__":
     try:

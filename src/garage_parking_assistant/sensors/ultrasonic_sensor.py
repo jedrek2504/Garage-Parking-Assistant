@@ -3,13 +3,9 @@
 import time
 import RPi.GPIO as GPIO
 import logging
-from exceptions import SensorError
+from ..exceptions import SensorError
 
 logger = logging.getLogger(__name__)
-
-class SensorError(Exception):
-    """Exception raised for sensor-related errors."""
-    pass
 
 class UltrasonicSensor:
     def __init__(self, trig_pin, echo_pin, name='Sensor'):
