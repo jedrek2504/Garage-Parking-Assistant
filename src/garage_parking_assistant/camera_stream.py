@@ -8,32 +8,33 @@ import time
 from exceptions import CameraError
 
 def run_flask_app():
-    # Configure logging for the Flask app to log to console
+    """
+    Run Flask app to stream camera feed.
+    """
     logging.basicConfig(
         level=logging.INFO,
         format='%(asctime)s [%(levelname)s] [Flask] %(message)s',
-        handlers=[
-            logging.StreamHandler()  # Log to console
-        ]
+        handlers=[logging.StreamHandler()]
     )
-
     logger = logging.getLogger('FlaskApp')
 
     app = Flask(__name__)
 
     try:
-        # Get the shared camera instance
-        picam2 = SharedCamera.get_instance()
+        camera = SharedCamera.get_instance()
         logger.info("Camera accessed by Flask app.")
     except CameraError as e:
         logger.critical(f"Camera access failed: {e}")
-        return  # Exit the Flask app if camera initialization fails
+        return  # Exit if camera fails
 
     def gen_frames():
+        """
+        Generator to yield camera frames.
+        """
         try:
             while True:
                 # Capture frame-by-frame
-                frame = picam2.capture_array()
+                frame = camera.capture_array()
 
                 # Convert color from RGB to BGR (OpenCV uses BGR)
                 frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
@@ -51,21 +52,21 @@ def run_flask_app():
                 frame_bytes = buffer.tobytes()
                 yield (b'--frame\r\n'
                        b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
-
-                # Sleep to control frame rate (approximate delay for 15 FPS)
-                time.sleep(0.066)
+                time.sleep(0.066)  # ~15 FPS
         except GeneratorExit:
-            # Handle generator exit when client disconnects
             logger.info("Client disconnected from video feed.")
         except CameraError as e:
             logger.critical(f"Camera error during frame generation: {e}")
         except Exception as e:
-            logger.exception("Exception in gen_frames.")
+            logger.exception("Exception in frame generator.")
         finally:
             logger.info("Frame generation terminated.")
 
     @app.route('/video_feed')
     def video_feed():
+        """
+        Video feed route.
+        """
         logger.info("Client connected to /video_feed.")
         return Response(gen_frames(),
                         mimetype='multipart/x-mixed-replace; boundary=frame')
@@ -75,5 +76,4 @@ def run_flask_app():
     except Exception as e:
         logger.exception("Exception in Flask app.")
     finally:
-        # Do not stop the camera here as it's shared
         logger.info("Flask app terminated.")

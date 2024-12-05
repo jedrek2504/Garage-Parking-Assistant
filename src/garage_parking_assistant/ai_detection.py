@@ -12,11 +12,14 @@ logger = logging.getLogger(__name__)
 
 class AIModule:
     def __init__(self, config, callback):
+        """
+        Initialize AI Module with configuration and callback.
+        Loads background frame and sets ROI.
+        """
         self.config = config
-        self.callback = callback  # Callback to communicate with main loop
+        self.callback = callback
         self.background_frame_path = self.config.BACKGROUND_FRAME_PATH
         self.background_frame = self._load_background_frame()
-        self.frame_save_count = 0
         self.roi_top_left = (110, 60)
         self.roi_bottom_right = (550, 470)
         self.background_roi = self.background_frame[
@@ -25,68 +28,54 @@ class AIModule:
         ]
         self.thread = None
         self.stop_event = threading.Event()
-        self.area_threshold = 1500  # Area threshold for detecting objects
+        self.area_threshold = 1500  # Minimum area to detect an object
 
     def _load_background_frame(self):
         """
-        Loads the background frame. If it doesn't exist, captures it.
-        
-        Returns:
-            ndarray: The loaded background frame.
-        
-        Raises:
-            CameraError: If unable to load or capture the background frame.
+        Load or capture the background frame.
         """
         background_frame = cv2.imread(self.background_frame_path)
         if background_frame is None:
-            logger.error(f"Background frame not found at {self.background_frame_path}. Initiating capture.")
+            logger.error(f"Background frame not found at {self.background_frame_path}. Capturing...")
             self._capture_background_frame()
             background_frame = cv2.imread(self.background_frame_path)
             if background_frame is None:
-                logger.error(f"Failed to capture background frame at {self.background_frame_path}.")
-                raise CameraError("AIModule", "Background frame not found and capture failed.")
-        logger.info(f"Background frame loaded from {self.background_frame_path}.")
+                logger.error("Failed to capture background frame.")
+                raise CameraError("AIModule", "Background frame capture failed.")
+        logger.info("Background frame loaded.")
         return background_frame
 
     def _capture_background_frame(self):
         """
-        Captures the background frame by turning all LEDs green,
-        capturing the image, and then clearing the LEDs.
-        
-        Raises:
-            CameraError: If unable to capture the background frame.
+        Capture the background frame with LEDs green.
         """
         try:
             logger.info("Capturing background frame.")
-            # Turn all LED segments to green
+            # Set LEDs to green
             for segment in ['left', 'front', 'right']:
                 set_led_segment_color(segment, 0, 255, 0, brightness=20, update_immediately=True)
-
-            # Allow time for the LEDs to turn on
-            logger.info("LED segments turned green with 20/255 brightness. Waiting for 2 seconds before capturing background...")
+            logger.info("LEDs set to green. Waiting before capture...")
             time.sleep(2)
 
-            # Capture background frame
+            # Capture and save frame
             camera = SharedCamera.get_instance()
             frame = camera.capture_array()
             frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
             frame = cv2.flip(frame, -1)
             cv2.imwrite(self.background_frame_path, frame)
-            logger.info(f"Background frame captured and saved as {self.background_frame_path}.")
-
-            # Keep the LEDs on for additional time if needed
-            time.sleep(5)
-
+            logger.info("Background frame captured and saved.")
+            time.sleep(5)  # Optional stabilization time
         except Exception as e:
             logger.exception("Failed to capture background frame.")
-            raise CameraError("AIModule", "Failed to capture background frame.") from e
-
+            raise CameraError("AIModule", "Background frame capture failed.") from e
         finally:
-            # Clear all LEDs
             clear_leds()
-            logger.info("All LEDs cleared after background capture.")
+            logger.info("LEDs cleared after capture.")
 
     def start(self):
+        """
+        Start AI detection in a separate thread.
+        """
         try:
             if self.thread and self.thread.is_alive():
                 logger.warning("AI Module thread already running.")
@@ -100,57 +89,58 @@ class AIModule:
             raise GarageParkingAssistantError("Failed to start AI Module") from e
 
     def _majority_vote(self, detection_results):
-        positive_detections = sum(detection_results)
-        if positive_detections > len(detection_results) / 2:
-            logger.debug(f"Object detected in majority of frames ({positive_detections}/{len(detection_results)}).")
-            return True
-        else:
-            logger.debug(f"No object detected in majority of frames ({positive_detections}/{len(detection_results)}).")
-            return False
+        """
+        Determine detection based on majority vote.
+        """
+        positive = sum(detection_results)
+        return positive > len(detection_results) / 2
 
     def _run_detection(self):
+        """
+        Capture and process multiple frames to detect obstacles.
+        """
         try:
             camera = SharedCamera.get_instance()
-            frame_count = 3  # Number of frames to process
+            frame_count = 3 # Number of frames
             detection_results = []
 
             if not self.stop_event.is_set():
-                # Capture and process frames in separate threads
                 threads = []
                 for i in range(frame_count):
-                    thread = threading.Thread(target=self._capture_and_process_frame, args=(camera, detection_results, i))
+                    thread = threading.Thread(target=self._capture_and_process_frame, args=(camera, detection_results))
                     threads.append(thread)
                     thread.start()
-                    time.sleep(0.1)  # Stagger the start times slightly
+                    time.sleep(0.1)  # Slight stagger
 
                 for thread in threads:
                     thread.join()
 
-                # Determine final result based on majority vote
                 object_present = self._majority_vote(detection_results)
                 self.callback(object_present)
         except CameraError as e:
-            logger.error(f"Camera error during AI detection: {e}")
+            logger.error(f"Camera error: {e}")
             self.callback(False)
         except Exception as e:
-            logger.exception("Unexpected error in AI detection module.")
+            logger.exception("Unexpected error in AI detection.")
             self.callback(False)
         finally:
-            # AI module stops itself after one detection
             self.stop()
 
-    def _capture_and_process_frame(self, camera, detection_results, frame_index):
+    def _capture_and_process_frame(self, camera, detection_results):
+        """
+        Capture a frame and process it for obstacle detection.
+        """
         try:
             frame = camera.capture_array()
             frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
             frame = cv2.flip(frame, -1)
-            obstacle_detected = self._process_frame(frame)
-            detection_results.append(obstacle_detected)
+            detected = self._process_frame(frame)
+            detection_results.append(detected)
         except CameraError as e:
             logger.error(f"Camera error during frame capture: {e}")
             detection_results.append(False)
         except Exception as e:
-            logger.exception("Unexpected error during frame capture and processing.")
+            logger.exception("Error during frame capture and processing.")
             detection_results.append(False)
 
     def _process_frame(self, frame):
@@ -185,16 +175,18 @@ class AIModule:
 
             # Check for significant contours indicating an obstacle
             for cnt in contours:
-                area = cv2.contourArea(cnt)
-                if area > self.area_threshold:
-                    logger.debug(f"Detected object: area={area}")
+                if cv2.contourArea(cnt) > self.area_threshold:
+                    logger.debug(f"Object detected: area={cv2.contourArea(cnt)}")
                     return True
             return False
         except Exception as e:
-            logger.exception("Failed to process frame for obstacle detection.")
+            logger.exception("Failed to process frame.")
             return False
 
     def stop(self):
+        """
+        Stop the AI detection thread.
+        """
         try:
             if self.thread and self.thread.is_alive():
                 self.stop_event.set()
@@ -202,7 +194,7 @@ class AIModule:
                     self.thread.join()
                 logger.info("AI Module stopped.")
             else:
-                logger.debug("AI Module is not running.")
+                logger.debug("AI Module not running.")
         except Exception as e:
             logger.exception("Failed to stop AI Module.")
             raise GarageParkingAssistantError("Failed to stop AI Module") from e

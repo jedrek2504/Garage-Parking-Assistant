@@ -7,19 +7,26 @@ from exceptions import MQTTError
 logger = logging.getLogger(__name__)
 
 class MqttHandler:
+    """
+    Handles MQTT connections, subscriptions, and message publishing.
+    Implements observer pattern for message handling.
+    """
     def __init__(self, config):
         self.client = mqtt.Client()
         self.config = config
         self.observers = []
 
     def register_observer(self, observer):
+        """Register an observer to receive MQTT messages."""
         self.observers.append(observer)
 
     def notify_observers(self, topic, payload):
+        """Notify all observers of a received MQTT message."""
         for observer in self.observers:
             observer.update(topic, payload)
 
     def connect(self):
+        """Connect to the MQTT broker and subscribe to topics."""
         try:
             self.client.on_message = self.on_message
             self.client.connect(self.config.MQTT_BROKER, self.config.MQTT_PORT, 60)
@@ -30,90 +37,88 @@ class MqttHandler:
                 (self.config.MQTT_TOPICS["garage_state"], 0)
             ])
             self.client.loop_start()
-            logger.info("MQTT client connected and subscribed to topics.")
+            logger.info("Connected to MQTT broker and subscribed to topics.")
         except Exception as e:
-            logger.exception("Failed to connect MQTT client.")
-            raise MQTTError("Failed to connect MQTT client") from e
+            logger.exception("Failed to connect to MQTT broker.")
+            raise MQTTError("MQTT connection failed.") from e
 
     def on_message(self, client, userdata, msg):
+        """Callback for received MQTT messages."""
         try:
             payload = msg.payload.decode()
-            logger.info(f"Received MQTT message on {msg.topic}: {payload}")
+            logger.info(f"MQTT message received on {msg.topic}: {payload}")
             self.notify_observers(msg.topic, payload)
         except Exception as e:
-            logger.exception(f"Failed to process incoming MQTT message on {msg.topic}")
-            # Depending on the criticality, you might want to raise or handle differently
+            logger.exception(f"Failed to process MQTT message on {msg.topic}")
 
     def publish_distances(self, distances):
-        for sensor_name in ['front', 'left', 'right']:
-            distance = distances.get(sensor_name)
-            distance_topic = f"{self.config.MQTT_BASE_TOPIC}/sensor/{sensor_name}/distance"
-            availability_topic = f"{self.config.MQTT_BASE_TOPIC}/sensor/{sensor_name}/availability"
+        """Publish sensor distances and availability."""
+        for sensor in ['front', 'left', 'right']:
+            distance = distances.get(sensor)
+            distance_topic = f"{self.config.MQTT_BASE_TOPIC}/sensor/{sensor}/distance"
+            availability_topic = f"{self.config.MQTT_BASE_TOPIC}/sensor/{sensor}/availability"
             
             if distance is not None:
-                payload = str(distance)
-                self.client.publish(distance_topic, payload)
+                self.client.publish(distance_topic, str(distance))
                 self.client.publish(availability_topic, "online")
-                # Keep it commented unless needed -> too much junk.
-                # logger.debug(f"Published distance for {sensor_name}: {distance} cm to topic {distance_topic}")
             else:
-                # When distance is None, mark sensor as offline
                 self.client.publish(availability_topic, "offline")
-                # Keep it commented unless needed -> too much junk.
-                # logger.debug(f"Sensor '{sensor_name}' is offline. Published to topic {availability_topic}")
 
     def publish_garage_state(self, is_open):
+        """Publish garage door state."""
         state = "open" if is_open else "closed"
         self.client.publish(self.config.MQTT_TOPICS["garage_state"], state, retain=True)
-        logger.info(f"Published garage door state: {state} to topic {self.config.MQTT_TOPICS['garage_state']}")
+        logger.info(f"Published garage state: {state}")
 
     def publish_ai_detection(self, ai_detection):
-        topic = self.config.MQTT_TOPICS["ai_detection"]
-        self.client.publish(topic, ai_detection, retain=True)
-        logger.info(f"Published AI detection state: {ai_detection} to topic {topic}")
+        """Publish AI obstacle detection state."""
+        self.client.publish(self.config.MQTT_TOPICS["ai_detection"], ai_detection, retain=True)
+        logger.info(f"Published AI detection: {ai_detection}")
 
     def publish_process(self, process):
-        topic = self.config.MQTT_TOPICS["process_state"]
-        payload = process
-        self.client.publish(topic, payload, retain=True)
-        logger.info(f"Published process state: {payload} to topic {topic}")
+        """Publish current process state."""
+        self.client.publish(self.config.MQTT_TOPICS["process_state"], process, retain=True)
+        logger.info(f"Published process state: {process}")
 
     def publish_system_enabled(self, is_enabled):
+        """Publish system enabled state."""
         state = "ON" if is_enabled else "OFF"
-        topic = self.config.MQTT_TOPICS["system_enabled"]
-        self.client.publish(topic, state, retain=True)
-        logger.info(f"Published system enabled state: {state} to topic {topic}")
+        self.client.publish(self.config.MQTT_TOPICS["system_enabled"], state, retain=True)
+        logger.info(f"Published system enabled: {state}")
 
     def send_garage_command(self, command):
-        """Send a command to the garage door ('OPEN' or 'CLOSE')."""
+        """
+        Send a command to the garage door ('OPEN' or 'CLOSE').
+        """
         command = command.upper()
         if command in ["OPEN", "CLOSE"]:
             try:
                 self.client.publish(self.config.MQTT_TOPICS["garage_command"], command)
-                logger.info(f"Sent garage command: {command} to topic {self.config.MQTT_TOPICS['garage_command']}")
+                logger.info(f"Sent garage command: {command}")
             except Exception as e:
                 logger.exception(f"Failed to send garage command: {command}")
-                raise MQTTError(f"Failed to send garage command: {command}") from e
+                raise MQTTError(f"Failed to send command: {command}") from e
         else:
             logger.error(f"Invalid garage command: {command}")
-            raise MQTTError(f"Invalid garage command: {command}")
+            raise MQTTError(f"Invalid command: {command}")
 
     def publish_unauthorized_access_attempt(self):
-        """Publish a notification about an unauthorized attempt to open the garage door."""
+        """Notify about unauthorized garage door access attempts."""
         topic = "garage/parking/unauthorized_access"
         payload = "Attempt to open garage door denied. User is not home."
         try:
-            self.client.publish(topic, payload, retain=False)
-            logger.warning(f"Published unauthorized access attempt to topic {topic}: {payload}")
+            self.client.publish(topic, payload)
+            logger.warning(f"Published unauthorized access attempt: {payload}")
         except Exception as e:
             logger.exception("Failed to publish unauthorized access attempt.")
-            raise MQTTError("Failed to publish unauthorized access attempt.") from e
+            raise MQTTError("Unauthorized access publish failed.") from e
 
     def disconnect(self):
+        """Disconnect from the MQTT broker."""
         try:
             self.client.loop_stop()
             self.client.disconnect()
-            logger.info("MQTT client disconnected.")
+            logger.info("Disconnected from MQTT broker.")
         except Exception as e:
-            logger.exception("Failed to disconnect MQTT client.")
-            raise MQTTError("Failed to disconnect MQTT client") from e
+            logger.exception("Failed to disconnect from MQTT broker.")
+            raise MQTTError("MQTT disconnection failed.") from e

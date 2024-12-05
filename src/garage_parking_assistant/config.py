@@ -3,6 +3,9 @@
 import os
 
 class Config:
+    """
+    Configuration settings for Garage-Parking-Assistant.
+    """
     RED_DISTANCE_THRESHOLD = {
         'front': 3,
         'left': 3,
