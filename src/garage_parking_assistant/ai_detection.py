@@ -6,6 +6,7 @@ import logging
 import time
 from shared_camera import SharedCamera
 from exceptions import CameraError, GarageParkingAssistantError
+from leds.led import set_led_segment_color, clear_leds  # Adjusted import path
 
 logger = logging.getLogger(__name__)
 
@@ -14,10 +15,7 @@ class AIModule:
         self.config = config
         self.callback = callback  # Callback to communicate with main loop
         self.background_frame_path = self.config.BACKGROUND_FRAME_PATH
-        self.background_frame = cv2.imread(self.background_frame_path)
-        if self.background_frame is None:
-            logger.error(f"Background frame not found at {self.background_frame_path}.")
-            raise CameraError("AIModule", "Background frame not found.")
+        self.background_frame = self._load_background_frame()
         self.frame_save_count = 0
         self.roi_top_left = (110, 60)
         self.roi_bottom_right = (550, 470)
@@ -28,6 +26,65 @@ class AIModule:
         self.thread = None
         self.stop_event = threading.Event()
         self.area_threshold = 1500  # Area threshold for detecting objects
+
+    def _load_background_frame(self):
+        """
+        Loads the background frame. If it doesn't exist, captures it.
+        
+        Returns:
+            ndarray: The loaded background frame.
+        
+        Raises:
+            CameraError: If unable to load or capture the background frame.
+        """
+        background_frame = cv2.imread(self.background_frame_path)
+        if background_frame is None:
+            logger.error(f"Background frame not found at {self.background_frame_path}. Initiating capture.")
+            self._capture_background_frame()
+            background_frame = cv2.imread(self.background_frame_path)
+            if background_frame is None:
+                logger.error(f"Failed to capture background frame at {self.background_frame_path}.")
+                raise CameraError("AIModule", "Background frame not found and capture failed.")
+        logger.info(f"Background frame loaded from {self.background_frame_path}.")
+        return background_frame
+
+    def _capture_background_frame(self):
+        """
+        Captures the background frame by turning all LEDs green,
+        capturing the image, and then clearing the LEDs.
+        
+        Raises:
+            CameraError: If unable to capture the background frame.
+        """
+        try:
+            logger.info("Capturing background frame.")
+            # Turn all LED segments to green
+            for segment in ['left', 'front', 'right']:
+                set_led_segment_color(segment, 0, 255, 0, brightness=20, update_immediately=True)
+
+            # Allow time for the LEDs to turn on
+            logger.info("LED segments turned green with 20/255 brightness. Waiting for 2 seconds before capturing background...")
+            time.sleep(2)
+
+            # Capture background frame
+            camera = SharedCamera.get_instance()
+            frame = camera.capture_array()
+            frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+            frame = cv2.flip(frame, -1)
+            cv2.imwrite(self.background_frame_path, frame)
+            logger.info(f"Background frame captured and saved as {self.background_frame_path}.")
+
+            # Keep the LEDs on for additional time if needed
+            time.sleep(5)
+
+        except Exception as e:
+            logger.exception("Failed to capture background frame.")
+            raise CameraError("AIModule", "Failed to capture background frame.") from e
+
+        finally:
+            # Clear all LEDs
+            clear_leds()
+            logger.info("All LEDs cleared after background capture.")
 
     def start(self):
         try:

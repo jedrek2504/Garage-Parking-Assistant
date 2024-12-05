@@ -3,7 +3,7 @@
 import time
 import RPi.GPIO as GPIO
 import logging
-from ..exceptions import SensorError
+from exceptions import SensorError
 
 logger = logging.getLogger(__name__)
 
