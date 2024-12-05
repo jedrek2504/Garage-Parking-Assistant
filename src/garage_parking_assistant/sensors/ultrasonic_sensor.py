@@ -3,11 +3,9 @@
 import time
 import RPi.GPIO as GPIO
 import logging
+from ..exceptions import SensorError
 
 logger = logging.getLogger(__name__)
-
-class SensorError(Exception):
-    pass
 
 class UltrasonicSensor:
     def __init__(self, trig_pin, echo_pin, name='Sensor'):
@@ -17,11 +15,15 @@ class UltrasonicSensor:
         self.setup_sensor()
 
     def setup_sensor(self):
-        GPIO.setup(self.trig_pin, GPIO.OUT)
-        GPIO.setup(self.echo_pin, GPIO.IN)
-        GPIO.output(self.trig_pin, False)
-        time.sleep(2)
-        logger.info(f"{self.name} setup complete.")
+        try:
+            GPIO.setup(self.trig_pin, GPIO.OUT)
+            GPIO.setup(self.echo_pin, GPIO.IN)
+            GPIO.output(self.trig_pin, False)
+            time.sleep(2)
+            logger.info(f"{self.name} setup complete.")
+        except Exception as e:
+            logger.exception(f"{self.name}: Failed to setup sensor.")
+            raise SensorError(f"{self.name}: Failed to setup sensor.") from e
 
     def measure_distance(self):
         try:
@@ -58,6 +60,9 @@ class UltrasonicSensor:
             distance = pulse_duration * 17150
             logger.debug(f"{self.name}: Measured distance: {distance:.2f} cm")
             return round(distance, 2)
+        except SensorError as e:
+            logger.error(f"{self.name}: {e}")
+            raise
         except Exception as e:
             logger.exception(f"{self.name}: Failed to measure distance.")
-            raise SensorError(f"{self.name}: {str(e)}")
+            raise SensorError(f"{self.name}: Failed to measure distance.") from e
