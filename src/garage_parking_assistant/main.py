@@ -23,6 +23,7 @@ logger = logging.getLogger(__name__)
 # Adjust junk logging
 logging.getLogger('picamera2.picamera2').setLevel(logging.INFO)
 logging.getLogger('picamera2').setLevel(logging.INFO)
+logging.getLogger('werkzeug').setLevel(logging.WARNING)
 
 class GarageParkingAssistant:
     """
@@ -205,7 +206,7 @@ class GarageParkingAssistant:
             with self.distances_lock:
                 for sensor, distance in self.distances.items():
                     if distance is None or distance > self.sensor_manager.orange_distance_threshold[sensor]:
-                        logger.info(f"{sensor.capitalize()} sensor safe: {distance} cm")
+                        logger.info(f"{sensor.capitalize()} sensor safe: {distance} cm. Car not in garage.")
                         return False
             logger.info("Car detected in garage.")
             return True
@@ -260,7 +261,7 @@ class GarageParkingAssistant:
                     self.red_proximity_start_time = None
                     self.mqtt_handler.publish_ai_detection("IDLE")
                 else:
-                    logger.info("Parking procedure not active.")
+                    logger.debug("Parking procedure not active.")
         except Exception as e:
             logger.exception("Error stopping parking procedure.")
             raise GarageParkingAssistantError("Stop parking procedure error.") from e
