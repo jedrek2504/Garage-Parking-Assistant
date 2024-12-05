@@ -11,15 +11,13 @@ from led_manager import LedManager
 from ai_detection import AIModule
 from camera_stream import run_flask_app
 from exceptions import GarageParkingAssistantError, LEDManagerError, MQTTError, SensorError
-from ..helpers.capture_background_helper import capture_background_frame
 
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s [%(levelname)s] [%(name)s] %(message)s',
     handlers=[
-        logging.FileHandler('garage_parking_assistant.log', mode='w'),
-        logging.StreamHandler()  # Optionally log to console as well
+        logging.FileHandler('garage_parking_assistant.log', mode='w')
     ]
 )
 logger = logging.getLogger(__name__)
@@ -377,9 +375,6 @@ class GarageParkingAssistant:
             self.sensor_manager.setup_sensors()
             self.mqtt_handler.connect()
             self.start_flask_app()
-
-            self.capture_and_set_background_frame()
-
             logger.info("Starting main loop.")
             while True:
                 self.main_loop()
