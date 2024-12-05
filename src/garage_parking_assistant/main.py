@@ -314,7 +314,7 @@ class GarageParkingAssistant:
                             # Disable the system after closure
                             self.system_enabled = False
                             self.mqtt_handler.publish_system_enabled(self.system_enabled)
-                            logger.info("System disabled after garage door closure.")
+                            logger.info("System disabled after automatic garage door closure.")
                 else:
                     # Car is not within red proximity, reset the timer
                     if self.red_proximity_start_time is not None:
