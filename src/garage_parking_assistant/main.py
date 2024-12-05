@@ -20,13 +20,13 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Set picamera2 logging level
+# Adjust junk logging
 logging.getLogger('picamera2.picamera2').setLevel(logging.INFO)
 logging.getLogger('picamera2').setLevel(logging.INFO)
 
 class GarageParkingAssistant:
     """
-    Core class managing sensors, LEDs, AI detection, and MQTT communication.
+    Core class.
     """
     def __init__(self):
         try:
@@ -52,7 +52,7 @@ class GarageParkingAssistant:
 
     def update(self, topic, payload):
         """
-        Handle MQTT messages based on topic.
+        Observer method called by MqttHandler when a message is received.
         """
         try:
             if topic == self.config.MQTT_TOPICS["settings"]:
@@ -325,7 +325,7 @@ class GarageParkingAssistant:
 
     def main_loop(self):
         """
-        Main operational loop handling system enabled state and sensor updates.
+        Main operational loop.
         """
         try:
             if self.system_enabled:

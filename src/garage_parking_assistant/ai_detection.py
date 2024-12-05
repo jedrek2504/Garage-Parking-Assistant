@@ -33,7 +33,6 @@ class AIModule:
     def _load_background_frame(self):
         """
         Load or capture the background frame.
-        Raises CameraError if unsuccessful.
         """
         background_frame = cv2.imread(self.background_frame_path)
         if background_frame is None:
@@ -49,7 +48,6 @@ class AIModule:
     def _capture_background_frame(self):
         """
         Capture the background frame with LEDs green.
-        Raises CameraError on failure.
         """
         try:
             logger.info("Capturing background frame.")
@@ -103,7 +101,7 @@ class AIModule:
         """
         try:
             camera = SharedCamera.get_instance()
-            frame_count = 3
+            frame_count = 3 # Number of frames
             detection_results = []
 
             if not self.stop_event.is_set():
@@ -147,22 +145,35 @@ class AIModule:
 
     def _process_frame(self, frame):
         """
-        Detect obstacles by comparing frame with background ROI.
-        Returns True if obstacle detected.
+        Processes a single frame to detect obstacles.
+
+        Args:
+            frame (ndarray): The image frame to process.
+
+        Returns:
+            bool: True if an obstacle is detected, False otherwise.
         """
         try:
+            # Extract the region of interest (ROI)
             roi = frame[self.roi_top_left[1]:self.roi_bottom_right[1],
                         self.roi_top_left[0]:self.roi_bottom_right[0]]
+
+            # Compute the absolute difference between the current ROI and the background
             diff = cv2.absdiff(roi, self.background_roi)
+
+            # Convert to grayscale and apply thresholding
             gray = cv2.cvtColor(diff, cv2.COLOR_BGR2GRAY)
             _, fg_mask = cv2.threshold(gray, 50, 255, cv2.THRESH_BINARY)
 
-            # Reduce noise
+            # Perform morphological operations to reduce noise
             kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
             fg_mask = cv2.morphologyEx(fg_mask, cv2.MORPH_OPEN, kernel, iterations=2)
             fg_mask = cv2.morphologyEx(fg_mask, cv2.MORPH_DILATE, kernel, iterations=1)
 
+            # Find contours in the foreground mask
             contours, _ = cv2.findContours(fg_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+            # Check for significant contours indicating an obstacle
             for cnt in contours:
                 if cv2.contourArea(cnt) > self.area_threshold:
                     logger.debug(f"Object detected: area={cv2.contourArea(cnt)}")

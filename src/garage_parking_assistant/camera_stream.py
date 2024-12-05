@@ -33,13 +33,22 @@ def run_flask_app():
         """
         try:
             while True:
+                # Capture frame-by-frame
                 frame = camera.capture_array()
+
+                # Convert color from RGB to BGR (OpenCV uses BGR)
                 frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+
+                # Flip the frame vertically and horizontally (rotate 180 degrees)
                 frame = cv2.flip(frame, -1)
+
+                # Encode the frame in JPEG format with higher quality
                 ret, buffer = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 85])
                 if not ret:
                     logger.warning("Failed to encode frame.")
-                    continue
+                    continue  # Skip the frame if encoding failed
+
+                # Convert the frame to bytes and yield it
                 frame_bytes = buffer.tobytes()
                 yield (b'--frame\r\n'
                        b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
