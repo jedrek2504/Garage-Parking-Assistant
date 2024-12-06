@@ -12,6 +12,7 @@ from ai_detection import AIModule
 from camera_stream import run_flask_app
 from exceptions import GarageParkingAssistantError, LEDManagerError, MQTTError, SensorError
 
+# Configure logging to file
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s [%(levelname)s] [%(name)s] %(message)s',
@@ -19,11 +20,15 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Adjust junk logging
 logging.getLogger('picamera2.picamera2').setLevel(logging.INFO)
 logging.getLogger('picamera2').setLevel(logging.INFO)
 logging.getLogger('werkzeug').setLevel(logging.WARNING)
 
 class GarageParkingAssistant:
+    """
+    Core class.
+    """
     def __init__(self):
         try:
             self.config = Config()
@@ -53,8 +58,10 @@ class GarageParkingAssistant:
             raise GarageParkingAssistantError("Initialization failed.") from e
 
     def update(self, topic, payload):
+        """
+        Observer method called by MqttHandler when a message is received.
+        """
         try:
-            # MQTT callback - acquire state_lock before modifying any shared state
             if topic == self.config.MQTT_TOPICS["settings"]:
                 self.update_settings(payload)
             elif topic == self.config.MQTT_TOPICS["garage_command"]:
@@ -69,6 +76,9 @@ class GarageParkingAssistant:
             logger.exception(f"Failed to handle MQTT update for topic: {topic}")
 
     def update_settings(self, payload):
+        """
+        Update sensor thresholds and LED brightness from MQTT settings.
+        """
         try:
             data = json.loads(payload)
             logger.info(f"Updating settings: {data}")
@@ -86,7 +96,10 @@ class GarageParkingAssistant:
             raise GarageParkingAssistantError("Unexpected settings update error.") from e
 
     def handle_blinking(self):
-        blink_duration = 10
+        """
+        Manage blinking duration and restart AI detection after blinking.
+        """
+        blink_duration = 10  # seconds
         start_time = time.time()
         while True:
             with self.state_lock:
@@ -107,6 +120,9 @@ class GarageParkingAssistant:
                 self.ai_module.start()
 
     def on_ai_detection(self, object_detected):
+        """
+        Callback for AI detection results.
+        """
         try:
             if object_detected:
                 logger.info("Obstacle detected. Initiating LED blinking.")
@@ -125,7 +141,9 @@ class GarageParkingAssistant:
             raise GarageParkingAssistantError("AI detection callback error.") from e
 
     def on_garage_command(self, command):
-        # state_lock acquired by caller
+        """
+        Handle garage door commands from MQTT.
+        """
         try:
             logger.info(f"Received garage command: {command}")
             command = command.upper()
@@ -155,7 +173,9 @@ class GarageParkingAssistant:
             raise GarageParkingAssistantError("Garage command handling error.") from e
 
     def update_system_enabled_state(self):
-        # state_lock must be held
+        """
+        Update the system enabled state based on user and garage door status.
+        """
         try:
             prev_state = self.system_enabled
             self.system_enabled = self.user_is_home and self.garage_door_open
@@ -167,7 +187,9 @@ class GarageParkingAssistant:
             raise GarageParkingAssistantError("System state update failed.") from e
 
     def on_user_status_update(self, status):
-        # state_lock must be held
+        """
+        Update user presence status from MQTT.
+        """
         try:
             self.user_is_home = (status.lower() == 'on')
             logger.info(f"User is home: {self.user_is_home}")
@@ -177,6 +199,9 @@ class GarageParkingAssistant:
             raise GarageParkingAssistantError("User status update error.") from e
 
     def is_car_in_garage(self):
+        """
+        Determine if the car is inside based on sensor distances.
+        """
         try:
             with self.distances_lock:
                 for sensor, distance in self.distances.items():
@@ -190,7 +215,9 @@ class GarageParkingAssistant:
             raise GarageParkingAssistantError("Car presence determination error.") from e
 
     def start_parking_procedure(self):
-        # state_lock must be held
+        """
+        Initiate parking or exiting procedure based on car position.
+        """
         try:
             with self.ai_lock:
                 if not self.parking_procedure_active:
@@ -220,7 +247,9 @@ class GarageParkingAssistant:
             raise GarageParkingAssistantError("Start parking procedure error.") from e
 
     def stop_parking_procedure(self):
-        # state_lock must be held
+        """
+        Terminate the parking or exiting procedure.
+        """
         try:
             with self.ai_lock:
                 if self.parking_procedure_active:
@@ -239,7 +268,9 @@ class GarageParkingAssistant:
             raise GarageParkingAssistantError("Stop parking procedure error.") from e
 
     def measure_and_update_distances(self):
-        # No direct state changes, but still need distances_lock
+        """
+        Measure sensor distances, update LEDs, and publish via MQTT.
+        """
         try:
             with self.distances_lock:
                 self.sensor_manager.measure_distances(self.distances)
@@ -259,7 +290,9 @@ class GarageParkingAssistant:
             raise GarageParkingAssistantError("Measure and update distances error.") from e
 
     def handle_automatic_garage_closure(self):
-        # Check distances under lock, then check process under state_lock
+        """
+        Automatically close garage door if car is within red proximity for 5 seconds.
+        """
         try:
             with self.distances_lock:
                 front_distance = self.distances.get('front')
@@ -290,21 +323,24 @@ class GarageParkingAssistant:
             logger.error(f"MQTT error during garage closure: {e}")
         except Exception as e:
             logger.exception("Error handling automatic garage closure.")
+            raise GarageParkingAssistantError("Automatic garage closure error.") from e
 
     def main_loop(self):
+        """
+        Main operational loop.
+        """
         try:
             # Check system_enabled under state_lock
             with self.state_lock:
                 current_enabled = self.system_enabled
 
             if current_enabled:
-                # System enabled branch
+                # System enabled
                 with self.state_lock:
                     blinking = self.led_manager.is_blinking()
 
                 if blinking:
                     logger.debug("Blinking active. Skipping sensor updates.")
-                    # Still can update LEDs with current distances
                     with self.distances_lock:
                         self.led_manager.update_leds(self.distances)
                 else:
@@ -313,7 +349,6 @@ class GarageParkingAssistant:
                 time.sleep(0.5)
             else:
                 # System disabled branch
-                # It's critical we hold state_lock here as well to ensure no changes mid-operation
                 with self.state_lock:
                     self.stop_parking_procedure()  # Protected by state_lock
                 self.led_manager.clear_leds()
@@ -330,6 +365,7 @@ class GarageParkingAssistant:
             logger.exception("Unexpected error in main loop.")
 
     def start_flask_app(self):
+        """Start the Flask camera streaming app in a separate thread."""
         try:
             flask_thread = threading.Thread(target=run_flask_app, daemon=True)
             flask_thread.start()
@@ -339,6 +375,9 @@ class GarageParkingAssistant:
             raise GarageParkingAssistantError("Flask app start error.") from e
 
     def run(self):
+        """
+        Initialize components and start the main operational loop.
+        """
         try:
             self.sensor_manager.setup_sensors()
             self.mqtt_handler.connect()

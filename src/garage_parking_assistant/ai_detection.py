@@ -29,7 +29,7 @@ class AIModule:
         self.thread = None
         self.stop_event = threading.Event()
         self.area_threshold = 1500  # Minimum area to detect an object
-        self._running = False  # FIX: Track running state to avoid double stops
+        self._running = False
 
     def _load_background_frame(self):
         """
@@ -126,7 +126,6 @@ class AIModule:
             logger.exception("Unexpected error in AI detection.")
             self.callback(False)
         finally:
-            # FIX: Removed self.stop() call from here to prevent double-stop issues.
             pass
 
     def _capture_and_process_frame(self, camera, detection_results):
@@ -149,21 +148,34 @@ class AIModule:
     def _process_frame(self, frame):
         """
         Processes a single frame to detect obstacles.
+
+        Args:
+            frame (ndarray): The image frame to process.
+
+        Returns:
+            bool: True if an obstacle is detected, False otherwise.
         """
         try:
+            # Extract the region of interest (ROI)
             roi = frame[self.roi_top_left[1]:self.roi_bottom_right[1],
                         self.roi_top_left[0]:self.roi_bottom_right[0]]
 
+            # Compute the absolute difference between the current ROI and the background
             diff = cv2.absdiff(roi, self.background_roi)
+
+            # Convert to grayscale and apply thresholding
             gray = cv2.cvtColor(diff, cv2.COLOR_BGR2GRAY)
             _, fg_mask = cv2.threshold(gray, 50, 255, cv2.THRESH_BINARY)
 
+            # Perform morphological operations to reduce noise
             kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
             fg_mask = cv2.morphologyEx(fg_mask, cv2.MORPH_OPEN, kernel, iterations=2)
             fg_mask = cv2.morphologyEx(fg_mask, cv2.MORPH_DILATE, kernel, iterations=1)
 
+            # Find contours in the foreground mask
             contours, _ = cv2.findContours(fg_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
+            # Check for significant contours indicating an obstacle
             for cnt in contours:
                 if cv2.contourArea(cnt) > self.area_threshold:
                     logger.debug(f"Object detected: area={cv2.contourArea(cnt)}")
@@ -178,7 +190,7 @@ class AIModule:
         Stop the AI detection thread.
         """
         try:
-            if self._running:  # FIX: Only stop if currently running
+            if self._running:  # Only stop if currently running
                 self._running = False
                 if self.thread and self.thread.is_alive():
                     self.stop_event.set()
