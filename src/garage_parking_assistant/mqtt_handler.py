@@ -12,7 +12,8 @@ class MqttHandler:
     Implements observer pattern for message handling.
     """
     def __init__(self, config):
-        self.client = mqtt.Client()
+        self.client_id = "GarageParkingAssistantClient"
+        self.client = mqtt.Client(client_id=self.client_id)
         self.config = config
         self.observers = []
 
@@ -33,8 +34,7 @@ class MqttHandler:
             self.client.subscribe([
                 (self.config.MQTT_TOPICS["settings"], 0),
                 (self.config.MQTT_TOPICS["garage_command"], 0),
-                (self.config.MQTT_TOPICS["user_status"], 0),
-                (self.config.MQTT_TOPICS["garage_state"], 0)
+                (self.config.MQTT_TOPICS["user_status"], 0)
             ])
             self.client.loop_start()
             logger.info("Connected to MQTT broker and subscribed to topics.")
@@ -57,7 +57,7 @@ class MqttHandler:
             distance = distances.get(sensor)
             distance_topic = f"{self.config.MQTT_BASE_TOPIC}/sensor/{sensor}/distance"
             availability_topic = f"{self.config.MQTT_BASE_TOPIC}/sensor/{sensor}/availability"
-            
+
             if distance is not None:
                 self.client.publish(distance_topic, str(distance))
                 self.client.publish(availability_topic, "online")

@@ -6,7 +6,7 @@ import logging
 import time
 from shared_camera import SharedCamera
 from exceptions import CameraError, GarageParkingAssistantError
-from leds.led import set_led_segment_color, clear_leds  # Adjusted import path
+from leds.led import set_led_segment_color, clear_leds
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +29,7 @@ class AIModule:
         self.thread = None
         self.stop_event = threading.Event()
         self.area_threshold = 1500  # Minimum area to detect an object
+        self._running = False
 
     def _load_background_frame(self):
         """
@@ -81,6 +82,7 @@ class AIModule:
                 logger.warning("AI Module thread already running.")
             else:
                 self.stop_event.clear()
+                self._running = True
                 self.thread = threading.Thread(target=self._run_detection, daemon=True)
                 self.thread.start()
                 logger.info("AI Module started.")
@@ -101,7 +103,7 @@ class AIModule:
         """
         try:
             camera = SharedCamera.get_instance()
-            frame_count = 3 # Number of frames
+            frame_count = 3  # Number of frames
             detection_results = []
 
             if not self.stop_event.is_set():
@@ -124,7 +126,7 @@ class AIModule:
             logger.exception("Unexpected error in AI detection.")
             self.callback(False)
         finally:
-            self.stop()
+            pass
 
     def _capture_and_process_frame(self, camera, detection_results):
         """
@@ -188,13 +190,15 @@ class AIModule:
         Stop the AI detection thread.
         """
         try:
-            if self.thread and self.thread.is_alive():
-                self.stop_event.set()
-                if threading.current_thread() != self.thread:
-                    self.thread.join()
+            if self._running:  # Only stop if currently running
+                self._running = False
+                if self.thread and self.thread.is_alive():
+                    self.stop_event.set()
+                    if threading.current_thread() != self.thread:
+                        self.thread.join()
                 logger.info("AI Module stopped.")
             else:
-                logger.debug("AI Module not running.")
+                logger.debug("AI Module stop requested but it's not running.")
         except Exception as e:
             logger.exception("Failed to stop AI Module.")
             raise GarageParkingAssistantError("Failed to stop AI Module") from e
