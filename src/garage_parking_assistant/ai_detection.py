@@ -37,7 +37,7 @@ class AIModule:
         """
         background_frame = cv2.imread(self.background_frame_path)
         if background_frame is None:
-            logger.error(f"Background frame not found at {self.background_frame_path}. Capturing...")
+            logger.warning(f"Background frame not found at {self.background_frame_path}. Capturing...")
             self._capture_background_frame()
             background_frame = cv2.imread(self.background_frame_path)
             if background_frame is None:
