@@ -15,6 +15,7 @@ from state_machine import ParkingStateMachine
 from garage_closure import GarageClosureHandler
 from metrics import Metrics
 
+# Configure logging to file
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s [%(levelname)s] [%(name)s] %(message)s',
@@ -22,6 +23,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Adjust junk logging
 logging.getLogger('picamera2.picamera2').setLevel(logging.INFO)
 logging.getLogger('picamera2').setLevel(logging.INFO)
 logging.getLogger('werkzeug').setLevel(logging.WARNING)
@@ -75,7 +77,6 @@ class GarageParkingAssistant:
             if topic == self.config.MQTT_TOPICS["settings"]:
                 self.update_settings(payload)
             elif topic == self.config.MQTT_TOPICS["garage_command"]:
-                # Acquire state_lock to ensure consistent state changes
                 with self.state_lock:
                     self.on_garage_command(payload)
             elif topic == self.config.MQTT_TOPICS["user_status"]:
@@ -185,7 +186,6 @@ class GarageParkingAssistant:
                     logger.info("User home. Opening garage door.")
                     self.garage_door_open = True
                     self.update_system_enabled_state()
-                    # Start parking procedure (state_lock held)
                     self.start_parking_procedure()
                     self.mqtt_handler.publish_garage_state(self.garage_door_open)
                 else:
@@ -195,7 +195,6 @@ class GarageParkingAssistant:
                 self.garage_door_open = False
                 self.update_system_enabled_state()
 
-                # Stop parking procedure
                 self.stop_parking_procedure()
                 self.mqtt_handler.publish_garage_state(self.garage_door_open)
             else:
