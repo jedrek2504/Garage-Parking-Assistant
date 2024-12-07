@@ -11,6 +11,9 @@ from led_manager import LedManager
 from ai_detection import AIModule
 from camera_stream import run_flask_app
 from exceptions import GarageParkingAssistantError, LEDManagerError, MQTTError, SensorError
+from state_machine import ParkingStateMachine
+from garage_closure import GarageClosureHandler
+from metrics import Metrics
 
 # Configure logging to file
 logging.basicConfig(
@@ -27,8 +30,9 @@ logging.getLogger('werkzeug').setLevel(logging.WARNING)
 
 class GarageParkingAssistant:
     """
-    Core class.
+    Core class for the Garage-Parking-Assistant.
     """
+
     def __init__(self):
         try:
             self.config = Config()
@@ -36,30 +40,38 @@ class GarageParkingAssistant:
             self.led_manager = LedManager(self.config, self.sensor_manager)
             self.ai_module = AIModule(self.config, self.on_ai_detection)
 
-            # Shared state variables
+            # Initial system state variables
             self.system_enabled = self.config.SYSTEM_ENABLED
-            self.parking_procedure_active = False
             self.garage_door_open = False
             self.user_is_home = False
-            self.process = None
+            self.state_machine = ParkingStateMachine()
             self.close_command_sent = False
 
-            # Locks
+            # Holds current sensor distance measurements
+            self.distances = {'front': None, 'left': None, 'right': None}
+
+            self.mqtt_handler = MqttHandler(self.config)
+            self.garage_closure_handler = GarageClosureHandler()
+            self.metrics = Metrics()
+
+            # Locks for thread-safety
+            # state_lock: Protects system_enabled, garage_door_open, user_is_home, process states.
+            # distances_lock: Protects distance measurements.
+            # ai_lock: Protects AI start/stop operations.
             self.distances_lock = threading.Lock()
             self.state_lock = threading.Lock()
             self.ai_lock = threading.RLock()
 
-            self.distances = {'front': None, 'left': None, 'right': None}
-            self.mqtt_handler = MqttHandler(self.config)
+            # Register this assistant as an observer for MQTT messages
             self.mqtt_handler.register_observer(self)
-            self.red_proximity_start_time = None
         except Exception as e:
             logger.exception("Initialization failed.")
             raise GarageParkingAssistantError("Initialization failed.") from e
 
     def update(self, topic, payload):
         """
-        Observer method called by MqttHandler when a message is received.
+        Called by MqttHandler when MQTT messages arrive.
+        Dispatches to appropriate handlers while ensuring lock usage where needed.
         """
         try:
             if topic == self.config.MQTT_TOPICS["settings"]:
@@ -77,7 +89,7 @@ class GarageParkingAssistant:
 
     def update_settings(self, payload):
         """
-        Update sensor thresholds and LED brightness from MQTT settings.
+        Update sensor thresholds and LED brightness based on incoming MQTT settings.
         """
         try:
             data = json.loads(payload)
@@ -97,40 +109,61 @@ class GarageParkingAssistant:
 
     def handle_blinking(self):
         """
-        Manage blinking duration and restart AI detection after blinking.
+        Manages blinking duration after obstacle detection.
+        During blinking, no sensor measurements occur, and sensors are set to None.
+        After blinking ends, AI detection is restarted if still parking.
         """
-        blink_duration = 10  # seconds
+        blink_duration = 10
         start_time = time.time()
         while True:
             with self.state_lock:
-                if not self.parking_procedure_active:
+                if self.state_machine.is_idle():
+                    # If parking became idle, stop blinking handling
                     return
             if time.time() - start_time >= blink_duration:
                 break
             time.sleep(1)
 
+        # After blink duration ends:
         logger.info("Blinking ended. Restarting AI detection.")
         self.led_manager.stop_blinking()
+
+        # Reset LEDs to default state after blinking
         with self.distances_lock:
             self.led_manager.reset_leds_to_default(self.distances)
 
+        # Restart AI detection if still parking
         time.sleep(0.5)
         with self.state_lock:
-            if self.parking_procedure_active:
+            if self.state_machine.is_parking():
                 self.ai_module.start()
 
     def on_ai_detection(self, object_detected):
         """
-        Callback for AI detection results.
+        Callback from AI module after detection.
+        If object detected, start blinking and set distances to None (unavailable).
         """
         try:
             if object_detected:
                 logger.info("Obstacle detected. Initiating LED blinking.")
+                self.metrics.increment_obstacle()
+
+                # Start blinking
                 self.led_manager.start_blinking()
+
+                # During blinking, set all sensor distances to None/unavailable
+                with self.distances_lock:
+                    for s in self.distances.keys():
+                        self.distances[s] = None
+                    self.mqtt_handler.publish_distances(self.distances)
+
                 self.mqtt_handler.publish_ai_detection("DETECTED")
+
+                # Handle blinking in a separate thread
                 blink_thread = threading.Thread(target=self.handle_blinking, daemon=True)
                 blink_thread.start()
             else:
+                # No obstacle: publish CLEAR state
                 logger.info("No obstacle detected.")
                 self.mqtt_handler.publish_ai_detection("CLEAR")
         except LEDManagerError as e:
@@ -142,7 +175,8 @@ class GarageParkingAssistant:
 
     def on_garage_command(self, command):
         """
-        Handle garage door commands from MQTT.
+        Handle garage door commands (OPEN/CLOSE).
+        Must have state_lock held when calling.
         """
         try:
             logger.info(f"Received garage command: {command}")
@@ -151,16 +185,17 @@ class GarageParkingAssistant:
                 if self.user_is_home:
                     logger.info("User home. Opening garage door.")
                     self.garage_door_open = True
-                    self.start_parking_procedure()
                     self.update_system_enabled_state()
+                    self.start_parking_procedure()
                     self.mqtt_handler.publish_garage_state(self.garage_door_open)
                 else:
                     logger.warning("Unauthorized attempt to open garage door.")
                     self.mqtt_handler.publish_unauthorized_access_attempt()
             elif command == "CLOSE":
                 self.garage_door_open = False
-                self.stop_parking_procedure()
                 self.update_system_enabled_state()
+
+                self.stop_parking_procedure()
                 self.mqtt_handler.publish_garage_state(self.garage_door_open)
             else:
                 logger.warning(f"Unknown garage command: {command}")
@@ -174,7 +209,8 @@ class GarageParkingAssistant:
 
     def update_system_enabled_state(self):
         """
-        Update the system enabled state based on user and garage door status.
+        Updates system_enabled based on user presence and garage door state.
+        Must have state_lock held.
         """
         try:
             prev_state = self.system_enabled
@@ -188,7 +224,8 @@ class GarageParkingAssistant:
 
     def on_user_status_update(self, status):
         """
-        Update user presence status from MQTT.
+        Updates user_is_home status from MQTT.
+        Must have state_lock held.
         """
         try:
             self.user_is_home = (status.lower() == 'on')
@@ -200,7 +237,8 @@ class GarageParkingAssistant:
 
     def is_car_in_garage(self):
         """
-        Determine if the car is inside based on sensor distances.
+        Check if car is inside based on sensor distances.
+        If any sensor is None or distance > orange threshold => car not detected.
         """
         try:
             with self.distances_lock:
@@ -216,60 +254,48 @@ class GarageParkingAssistant:
 
     def start_parking_procedure(self):
         """
-        Initiate parking or exiting procedure based on car position.
+        Initiate parking or exiting procedure depending on car presence.
+        state_lock must be held before calling.
+        Acquires ai_lock internally to safely start AI if needed.
         """
-        try:
-            with self.ai_lock:
-                if not self.parking_procedure_active:
-                    logger.info("Starting parking procedure.")
-                    self.measure_and_update_distances()
-                    time.sleep(1)  # Stabilize LEDs
+        with self.ai_lock:
+            if self.state_machine.is_idle():
+                logger.info("Starting parking procedure.")
+                self.measure_and_update_distances()
+                time.sleep(1)  # Stabilize LEDs after measurement
 
-                    if self.is_car_in_garage():
-                        self.process = "EXITING"
-                        logger.info("Process: EXITING.")
-                    else:
-                        self.process = "PARKING"
-                        logger.info("Process: PARKING.")
-
-                    self.mqtt_handler.publish_process(self.process)
-                    if self.process == "PARKING":
-                        self.ai_module.start()
-
-                    self.parking_procedure_active = True
+                if self.is_car_in_garage():
+                    self.state_machine.start_exiting()
                 else:
-                    logger.info("Parking procedure already active.")
-        except GarageParkingAssistantError as e:
-            logger.error(f"Parking procedure error: {e}")
-            raise
-        except Exception as e:
-            logger.exception("Error starting parking procedure.")
-            raise GarageParkingAssistantError("Start parking procedure error.") from e
+                    self.state_machine.start_parking()
+
+                self.mqtt_handler.publish_process(self.state_machine.process)
+                if self.state_machine.is_parking():
+                    self.ai_module.start()
+            else:
+                logger.info("Parking procedure already active.")
 
     def stop_parking_procedure(self):
         """
-        Terminate the parking or exiting procedure.
+        Stop parking or exiting procedure.
+        state_lock must be held before calling.
+        Acquires ai_lock to safely stop AI if running.
         """
-        try:
-            with self.ai_lock:
-                if self.parking_procedure_active:
-                    logger.info("Stopping parking procedure.")
-                    self.parking_procedure_active = False
-                    self.process = None
-                    self.mqtt_handler.publish_process("IDLE")
-                    self.ai_module.stop()
-                    self.close_command_sent = False
-                    self.red_proximity_start_time = None
-                    self.mqtt_handler.publish_ai_detection("IDLE")
-                else:
-                    logger.debug("Parking procedure not active.")
-        except Exception as e:
-            logger.exception("Error stopping parking procedure.")
-            raise GarageParkingAssistantError("Stop parking procedure error.") from e
+        with self.ai_lock:
+            if not self.state_machine.is_idle():
+                logger.info("Stopping parking procedure.")
+                self.state_machine.set_idle()
+                self.mqtt_handler.publish_process(None)
+                self.ai_module.stop()
+                self.close_command_sent = False
+                self.mqtt_handler.publish_ai_detection("IDLE")
+            else:
+                logger.debug("Parking procedure not active.")
 
     def measure_and_update_distances(self):
         """
-        Measure sensor distances, update LEDs, and publish via MQTT.
+        Measure sensor distances and update LEDs and MQTT accordingly.
+        Only called when not blinking and system is enabled.
         """
         try:
             with self.distances_lock:
@@ -278,83 +304,73 @@ class GarageParkingAssistant:
                 self.mqtt_handler.publish_distances(self.distances)
         except SensorError as e:
             logger.error(f"Sensor measurement error: {e}")
-            # Continue operation
         except LEDManagerError as e:
             logger.error(f"LED update error: {e}")
-            # Continue operation
         except MQTTError as e:
             logger.error(f"MQTT publishing error: {e}")
-            # Continue operation
         except Exception as e:
             logger.exception("Error measuring and updating distances.")
             raise GarageParkingAssistantError("Measure and update distances error.") from e
 
     def handle_automatic_garage_closure(self):
         """
-        Automatically close garage door if car is within red proximity for 5 seconds.
+        Checks if car proximity persists long enough to trigger automatic closure.
+        Must acquire state_lock before calling closure handler.
         """
-        try:
-            with self.distances_lock:
-                front_distance = self.distances.get('front')
-            red_threshold = self.sensor_manager.red_distance_threshold.get('front')
+        with self.distances_lock:
+            front_distance = self.distances.get('front')
+        red_threshold = self.sensor_manager.red_distance_threshold.get('front')
 
-            logger.debug(f"Front distance: {front_distance} cm, Red threshold: {red_threshold} cm")
-
-            with self.state_lock:
-                if front_distance is not None and red_threshold is not None:
-                    if front_distance <= red_threshold:
-                        if not self.red_proximity_start_time:
-                            self.red_proximity_start_time = time.time()
-                            logger.debug("Car entered red proximity. Starting timer.")
-                        elif time.time() - self.red_proximity_start_time >= 5:
-                            if self.process == "PARKING" and not self.close_command_sent:
-                                logger.info("Closing garage door automatically.")
-                                self.mqtt_handler.send_garage_command("CLOSE")
-                                self.close_command_sent = True
-                                self.system_enabled = False
-                                self.mqtt_handler.publish_system_enabled(self.system_enabled)
-                    else:
-                        if self.red_proximity_start_time:
-                            logger.debug("Car exited red proximity. Resetting timer.")
-                        self.red_proximity_start_time = None
-                else:
-                    self.red_proximity_start_time = None
-        except MQTTError as e:
-            logger.error(f"MQTT error during garage closure: {e}")
-        except Exception as e:
-            logger.exception("Error handling automatic garage closure.")
-            raise GarageParkingAssistantError("Automatic garage closure error.") from e
+        with self.state_lock:
+            self.close_command_sent, self.system_enabled = self.garage_closure_handler.handle_automatic_garage_closure(
+                front_distance,
+                red_threshold,
+                self.state_machine.process,
+                self.close_command_sent,
+                self.system_enabled,
+                self.mqtt_handler.send_garage_command,
+                self.mqtt_handler.publish_system_enabled
+            )
 
     def main_loop(self):
         """
-        Main operational loop.
+        Main operational loop:
         """
         try:
-            # Check system_enabled under state_lock
             with self.state_lock:
                 current_enabled = self.system_enabled
 
             if current_enabled:
-                # System enabled
                 with self.state_lock:
                     blinking = self.led_manager.is_blinking()
 
                 if blinking:
                     logger.debug("Blinking active. Skipping sensor updates.")
                     with self.distances_lock:
-                        self.led_manager.update_leds(self.distances)
+                        for s in self.distances.keys():
+                            self.distances[s] = None
+                        self.mqtt_handler.publish_distances(self.distances)
+                        
+                    self.led_manager.update_leds(self.distances)
+
                 else:
+                    # Normal operation
                     self.measure_and_update_distances()
                     self.handle_automatic_garage_closure()
+
+                # Update metrics periodically
+                self.metrics.increment_cycle()
+                self.metrics.log_metrics_if_due()
                 time.sleep(0.5)
             else:
-                # System disabled branch
+                # System disabled
                 with self.state_lock:
-                    self.stop_parking_procedure()  # Protected by state_lock
+                    self.stop_parking_procedure()
                 self.led_manager.clear_leds()
                 logger.info("System disabled.")
                 with self.distances_lock:
-                    self.distances = {'front': None, 'left': None, 'right': None}
+                    for s in self.distances:
+                        self.distances[s] = None
                     self.mqtt_handler.publish_distances(self.distances)
                 time.sleep(5)
         except (SensorError, LEDManagerError, MQTTError) as e:
@@ -365,7 +381,9 @@ class GarageParkingAssistant:
             logger.exception("Unexpected error in main loop.")
 
     def start_flask_app(self):
-        """Start the Flask camera streaming app in a separate thread."""
+        """
+        Starts the Flask camera streaming app in a separate thread.
+        """
         try:
             flask_thread = threading.Thread(target=run_flask_app, daemon=True)
             flask_thread.start()
@@ -376,7 +394,9 @@ class GarageParkingAssistant:
 
     def run(self):
         """
-        Initialize components and start the main operational loop.
+        Entry point after initialization.
+        Sets up sensors, connects MQTT, starts Flask app, and enters main_loop.
+        On exit, cleans up resources.
         """
         try:
             self.sensor_manager.setup_sensors()

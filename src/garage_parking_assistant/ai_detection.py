@@ -6,7 +6,7 @@ import logging
 import time
 from shared_camera import SharedCamera
 from exceptions import CameraError, GarageParkingAssistantError
-from leds.led import set_led_segment_color, clear_leds
+from led import set_led_segment_color, clear_leds
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +28,7 @@ class AIModule:
         ]
         self.thread = None
         self.stop_event = threading.Event()
-        self.area_threshold = 1500  # Minimum area to detect an object
+        self.area_threshold = 1500
         self._running = False
 
     def _load_background_frame(self):
@@ -52,20 +52,19 @@ class AIModule:
         """
         try:
             logger.info("Capturing background frame.")
-            # Set LEDs to green
+            # Set LEDs to green to ensure default background.
             for segment in ['left', 'front', 'right']:
                 set_led_segment_color(segment, 0, 255, 0, brightness=20, update_immediately=True)
             logger.info("LEDs set to green. Waiting before capture...")
             time.sleep(2)
 
-            # Capture and save frame
             camera = SharedCamera.get_instance()
             frame = camera.capture_array()
             frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
             frame = cv2.flip(frame, -1)
             cv2.imwrite(self.background_frame_path, frame)
             logger.info("Background frame captured and saved.")
-            time.sleep(5)  # Optional stabilization time
+            time.sleep(5)
         except Exception as e:
             logger.exception("Failed to capture background frame.")
             raise CameraError("AIModule", "Background frame capture failed.") from e
@@ -103,7 +102,7 @@ class AIModule:
         """
         try:
             camera = SharedCamera.get_instance()
-            frame_count = 3  # Number of frames
+            frame_count = 3
             detection_results = []
 
             if not self.stop_event.is_set():
@@ -112,12 +111,13 @@ class AIModule:
                     thread = threading.Thread(target=self._capture_and_process_frame, args=(camera, detection_results))
                     threads.append(thread)
                     thread.start()
-                    time.sleep(0.1)  # Slight stagger
+                    time.sleep(0.1)
 
                 for thread in threads:
                     thread.join()
 
                 object_present = self._majority_vote(detection_results)
+                logger.debug(f"AI detection completed. Object present: {object_present}")
                 self.callback(object_present)
         except CameraError as e:
             logger.error(f"Camera error: {e}")
@@ -126,7 +126,7 @@ class AIModule:
             logger.exception("Unexpected error in AI detection.")
             self.callback(False)
         finally:
-            pass
+            logger.debug("AI detection run completed.")
 
     def _capture_and_process_frame(self, camera, detection_results):
         """
@@ -190,7 +190,7 @@ class AIModule:
         Stop the AI detection thread.
         """
         try:
-            if self._running:  # Only stop if currently running
+            if self._running:
                 self._running = False
                 if self.thread and self.thread.is_alive():
                     self.stop_event.set()
