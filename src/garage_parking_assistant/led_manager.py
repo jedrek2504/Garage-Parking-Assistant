@@ -2,7 +2,7 @@
 
 import time
 import logging
-from leds.led import set_led_segment_color, clear_leds, pixels
+from led import set_led_segment_color, clear_leds, pixels
 from exceptions import LEDManagerError
 
 logger = logging.getLogger(__name__)

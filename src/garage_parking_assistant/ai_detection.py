@@ -6,7 +6,7 @@ import logging
 import time
 from shared_camera import SharedCamera
 from exceptions import CameraError, GarageParkingAssistantError
-from leds.led import set_led_segment_color, clear_leds
+from led import set_led_segment_color, clear_leds
 
 logger = logging.getLogger(__name__)
 

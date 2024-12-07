@@ -4,7 +4,7 @@ import time
 import logging
 import RPi.GPIO as GPIO
 from exceptions import SensorError, GarageParkingAssistantError
-from sensors.ultrasonic_sensor import UltrasonicSensor, BaseSensor
+from ultrasonic_sensor import UltrasonicSensor
 
 logger = logging.getLogger(__name__)
 

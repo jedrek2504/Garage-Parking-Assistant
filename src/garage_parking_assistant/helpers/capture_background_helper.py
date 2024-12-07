@@ -4,8 +4,8 @@ from pathlib import Path
 
 # Add the src directory to the Python path
 sys.path.append(str(Path(__file__).resolve().parent.parent))  # Points to src/
-from garage_parking_assistant.leds.led import set_led_segment_color, clear_leds
-from garage_parking_assistant.shared_camera import SharedCamera
+from led import set_led_segment_color, clear_leds
+from shared_camera import SharedCamera
 import cv2
 import logging
 

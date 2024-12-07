@@ -1,4 +1,4 @@
-# src/garage_parking_assistant/sensors/ultrasonic_sensor.py
+# src/garage_parking_assistant/ultrasonic_sensor.py
 
 import time
 import RPi.GPIO as GPIO
