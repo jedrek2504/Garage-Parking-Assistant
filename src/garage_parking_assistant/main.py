@@ -8,7 +8,7 @@ from config import Config
 from mqtt_handler import MqttHandler
 from sensor_manager import SensorManager
 from led_manager import LedManager
-from garage_parking_assistant.obstacle_detection import DetectionModule
+from obstacle_detection import DetectionModule
 from camera_stream import run_flask_app
 from exceptions import GarageParkingAssistantError, LEDManagerError, MQTTError, SensorError
 from state_machine import ParkingStateMachine

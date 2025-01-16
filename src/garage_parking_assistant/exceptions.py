@@ -19,9 +19,11 @@ class MQTTError(GarageParkingAssistantError):
 
 class CameraError(GarageParkingAssistantError):
     """Exception for camera-related issues."""
-    def __init__(self, message="Camera error"):
+    def __init__(self, module="CameraError", message="Camera error"):
+        self.module = module
         self.message = message
-        super().__init__(self.message)
+        super().__init__(f"[{self.module}] {self.message}")
+
 
 class LEDManagerError(GarageParkingAssistantError):
     """Exception for LED manager issues."""

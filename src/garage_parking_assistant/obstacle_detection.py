@@ -5,17 +5,23 @@ import threading
 import logging
 import time
 from shared_camera import SharedCamera
-from exceptions import CameraError, GarageParkingAssistantError
-from led import set_led_segment_color, clear_leds
+from exceptions import CameraError, GarageParkingAssistantError, LEDManagerError
+from led import LED
 
 logger = logging.getLogger(__name__)
 
 class DetectionModule:
+    """
+    Provides obstacle detection by comparing the current camera frame 
+    against a previously captured background frame. 
+    """
+
     def __init__(self, config, callback):
         """
         Initialize Obstacle Detection Module with configuration and callback.
         Loads background frame and sets ROI.
         """
+        self.led_strip = LED()
         self.config = config
         self.callback = callback
         self.background_frame_path = self.config.BACKGROUND_FRAME_PATH
@@ -30,6 +36,7 @@ class DetectionModule:
         self.stop_event = threading.Event()
         self.area_threshold = 1500
         self._running = False
+
 
     def _load_background_frame(self):
         """
@@ -54,7 +61,9 @@ class DetectionModule:
             logger.info("Capturing background frame.")
             # Set LEDs to green to ensure default background.
             for segment in ['left', 'front', 'right']:
-                set_led_segment_color(segment, 0, 255, 0, brightness=20, update_immediately=True)
+                self.led_strip.set_led_segment_color(
+                    segment, 0, 255, 0, brightness=20, update_immediately=True
+                )
             logger.info("LEDs set to green. Waiting before capture...")
             time.sleep(2)
 
@@ -69,8 +78,12 @@ class DetectionModule:
             logger.exception("Failed to capture background frame.")
             raise CameraError("AIModule", "Background frame capture failed.") from e
         finally:
-            clear_leds()
-            logger.info("LEDs cleared after capture.")
+            # Clear LEDs after capture
+            try:
+                self.led_strip.clear_leds()
+                logger.info("LEDs cleared after capture.")
+            except LEDManagerError as led_err:
+                logger.error(f"LED clearing failed after capture: {led_err}")
 
     def start(self):
         """
@@ -108,7 +121,10 @@ class DetectionModule:
             if not self.stop_event.is_set():
                 threads = []
                 for i in range(frame_count):
-                    thread = threading.Thread(target=self._capture_and_process_frame, args=(camera, detection_results))
+                    thread = threading.Thread(
+                        target=self._capture_and_process_frame,
+                        args=(camera, detection_results)
+                    )
                     threads.append(thread)
                     thread.start()
                     time.sleep(0.1)
