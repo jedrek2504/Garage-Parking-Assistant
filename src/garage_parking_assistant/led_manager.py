@@ -2,8 +2,8 @@
 
 import time
 import logging
-from led import set_led_segment_color, clear_leds, pixels
 from exceptions import LEDManagerError
+from led import LED
 
 logger = logging.getLogger(__name__)
 
@@ -12,6 +12,7 @@ class LedManager:
     Manages LED segments based on sensor data and obstacle detection.
     Handles blinking for obstacle indication.
     """
+
     def __init__(self, config, sensor_manager):
         self.config = config
         self.sensor_manager = sensor_manager
@@ -20,6 +21,10 @@ class LedManager:
         self.last_blink_time = 0
         self.blink_state = False
         self.blink_color = (0, 0, 255)  # Blue for blinking
+
+        # Create an instance of the LED class (new approach)
+        self.led_strip = LED()
+        logger.info("LedManager initialized with a new LED instance.")
 
     def update_brightness(self, brightness):
         """Update LED brightness."""
@@ -74,8 +79,13 @@ class LedManager:
                     if self.blink_state:
                         # Turn LEDs on with blink color
                         for segment in ['front', 'left', 'right']:
-                            set_led_segment_color(segment, *self.blink_color, brightness=self.brightness, update_immediately=False)
-                        pixels.show()
+                            self.led_strip.set_led_segment_color(
+                                segment,
+                                *self.blink_color,
+                                brightness=self.brightness,
+                                update_immediately=False
+                            )
+                        self.led_strip.pixels.show()
                         logger.debug("Blinking: LEDs turned on.")
                     else:
                         # Turn LEDs off
@@ -92,23 +102,34 @@ class LedManager:
     def update_leds_based_on_distances(self, distances):
         """Set LED colors based on sensor distance thresholds."""
         try:
-            red = self.sensor_manager.red_distance_threshold
-            orange = self.sensor_manager.orange_distance_threshold
+            red_threshold = self.sensor_manager.red_distance_threshold
+            orange_threshold = self.sensor_manager.orange_distance_threshold
 
             for sensor in ['front', 'left', 'right']:
                 distance = distances.get(sensor)
                 if distance is not None:
-                    if distance <= red[sensor]:
-                        color = (255, 0, 0)  # Red
-                    elif distance <= orange[sensor]:
-                        color = (255, 165, 0)  # Orange
+                    if distance <= red_threshold[sensor]:
+                        color = (255, 0, 0)    # Red
+                    elif distance <= orange_threshold[sensor]:
+                        color = (255, 165, 0) # Orange
                     else:
                         color = (0, 255, 0)  # Green
-                    set_led_segment_color(sensor, *color, brightness=self.brightness, update_immediately=False)
+
+                    self.led_strip.set_led_segment_color(
+                        sensor,
+                        *color,
+                        brightness=self.brightness,
+                        update_immediately=False
+                    )
                     logger.debug(f"{sensor.capitalize()} LED set to {color}.")
                 else:
-                    set_led_segment_color(sensor, 0, 0, 0, update_immediately=False)  # Turn off
-            pixels.show()
+                    # Turn off if no distance reading
+                    self.led_strip.set_led_segment_color(
+                        sensor,
+                        0, 0, 0,
+                        update_immediately=False
+                    )
+            self.led_strip.pixels.show()
         except KeyError as e:
             logger.error(f"Invalid sensor name: {e}")
             raise LEDManagerError(f"Invalid sensor name: {e}") from e
@@ -128,7 +149,7 @@ class LedManager:
     def clear_leds(self):
         """Turn off all LEDs."""
         try:
-            clear_leds()
+            self.led_strip.clear_leds()
             logger.debug("All LEDs cleared.")
         except Exception as e:
             logger.exception("Failed to clear LEDs.")
