@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 class LedManager:
     """
-    Manages LED segments based on sensor data and AI detection.
+    Manages LED segments based on sensor data and obstacle detection.
     Handles blinking for obstacle indication.
     """
     def __init__(self, config, sensor_manager):

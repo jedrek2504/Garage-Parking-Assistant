@@ -23,7 +23,7 @@ background_roi = background_frame[
 
 def process_frame(frame, background_roi, roi_top_left, roi_bottom_right):
     """
-    Perform AI analysis to detect objects by comparing the current frame's ROI
+    Perform analysis to detect objects by comparing the current frame's ROI
     with the background ROI.
     """
     # Extract ROI from the frame
@@ -71,7 +71,7 @@ def process_test_frames():
             print(f"Failed to load frame: {frame_path}")
             continue
 
-        # Perform AI analysis
+        # Perform obstacle analysis
         detections = process_frame(frame, background_roi, ROI_TOP_LEFT, ROI_BOTTOM_RIGHT)
 
         # Draw the ROI and obstacles

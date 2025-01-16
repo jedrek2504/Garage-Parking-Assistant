@@ -8,7 +8,7 @@ from config import Config
 from mqtt_handler import MqttHandler
 from sensor_manager import SensorManager
 from led_manager import LedManager
-from ai_detection import AIModule
+from garage_parking_assistant.obstacle_detection import DetectionModule
 from camera_stream import run_flask_app
 from exceptions import GarageParkingAssistantError, LEDManagerError, MQTTError, SensorError
 from state_machine import ParkingStateMachine
@@ -38,7 +38,7 @@ class GarageParkingAssistant:
             self.config = Config()
             self.sensor_manager = SensorManager(self.config)
             self.led_manager = LedManager(self.config, self.sensor_manager)
-            self.ai_module = AIModule(self.config, self.on_ai_detection)
+            self.ai_module = DetectionModule(self.config, self.on_ai_detection)
 
             # Initial system state variables
             self.system_enabled = self.config.SYSTEM_ENABLED
@@ -57,10 +57,10 @@ class GarageParkingAssistant:
             # Locks for thread-safety
             # state_lock: Protects system_enabled, garage_door_open, user_is_home, process states.
             # distances_lock: Protects distance measurements.
-            # ai_lock: Protects AI start/stop operations.
+            # detection_lock: Protects detection thread start/stop operations.
             self.distances_lock = threading.Lock()
             self.state_lock = threading.Lock()
-            self.ai_lock = threading.RLock()
+            self.detection_lock = threading.RLock()
 
             # Register this assistant as an observer for MQTT messages
             self.mqtt_handler.register_observer(self)
@@ -111,7 +111,7 @@ class GarageParkingAssistant:
         """
         Manages blinking duration after obstacle detection.
         During blinking, no sensor measurements occur, and sensors are set to None.
-        After blinking ends, AI detection is restarted if still parking.
+        After blinking ends, obstacle detection is restarted if still parking.
         """
         blink_duration = 10
         start_time = time.time()
@@ -125,14 +125,14 @@ class GarageParkingAssistant:
             time.sleep(1)
 
         # After blink duration ends:
-        logger.info("Blinking ended. Restarting AI detection.")
+        logger.info("Blinking ended. Restarting obstacle detection.")
         self.led_manager.stop_blinking()
 
         # Reset LEDs to default state after blinking
         with self.distances_lock:
             self.led_manager.reset_leds_to_default(self.distances)
 
-        # Restart AI detection if still parking
+        # Restart obstacle detection if still parking
         time.sleep(0.5)
         with self.state_lock:
             if self.state_machine.is_parking():
@@ -140,7 +140,7 @@ class GarageParkingAssistant:
 
     def on_ai_detection(self, object_detected):
         """
-        Callback from AI module after detection.
+        Callback from obstacle module after detection.
         If object detected, start blinking and set distances to None (unavailable).
         """
         try:
@@ -170,8 +170,8 @@ class GarageParkingAssistant:
             logger.error(f"LED Manager error: {e}")
             raise
         except Exception as e:
-            logger.exception("Error in AI detection callback.")
-            raise GarageParkingAssistantError("AI detection callback error.") from e
+            logger.exception("Error in obstacle detection callback.")
+            raise GarageParkingAssistantError("Obstacle detection callback error.") from e
 
     def on_garage_command(self, command):
         """
@@ -256,9 +256,9 @@ class GarageParkingAssistant:
         """
         Initiate parking or exiting procedure depending on car presence.
         state_lock must be held before calling.
-        Acquires ai_lock internally to safely start AI if needed.
+        Acquires ai_lock internally to safely start obstacle detection if needed.
         """
-        with self.ai_lock:
+        with self.detection_lock:
             if self.state_machine.is_idle():
                 logger.info("Starting parking procedure.")
                 self.measure_and_update_distances()
@@ -279,9 +279,9 @@ class GarageParkingAssistant:
         """
         Stop parking or exiting procedure.
         state_lock must be held before calling.
-        Acquires ai_lock to safely stop AI if running.
+        Acquires ai_lock to safely stop detection if running.
         """
-        with self.ai_lock:
+        with self.detection_lock:
             if not self.state_machine.is_idle():
                 logger.info("Stopping parking procedure.")
                 self.state_machine.set_idle()

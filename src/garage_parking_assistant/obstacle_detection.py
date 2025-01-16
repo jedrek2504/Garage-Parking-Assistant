@@ -10,10 +10,10 @@ from led import set_led_segment_color, clear_leds
 
 logger = logging.getLogger(__name__)
 
-class AIModule:
+class DetectionModule:
     def __init__(self, config, callback):
         """
-        Initialize AI Module with configuration and callback.
+        Initialize Obstacle Detection Module with configuration and callback.
         Loads background frame and sets ROI.
         """
         self.config = config
@@ -74,20 +74,20 @@ class AIModule:
 
     def start(self):
         """
-        Start AI detection in a separate thread.
+        Start obstacle detection in a separate thread.
         """
         try:
             if self.thread and self.thread.is_alive():
-                logger.warning("AI Module thread already running.")
+                logger.warning("DetectionModule thread already running.")
             else:
                 self.stop_event.clear()
                 self._running = True
                 self.thread = threading.Thread(target=self._run_detection, daemon=True)
                 self.thread.start()
-                logger.info("AI Module started.")
+                logger.info("DetectionModule started.")
         except Exception as e:
-            logger.exception("Failed to start AI Module.")
-            raise GarageParkingAssistantError("Failed to start AI Module") from e
+            logger.exception("Failed to start DetectionModule.")
+            raise GarageParkingAssistantError("Failed to start DetectionModule") from e
 
     def _majority_vote(self, detection_results):
         """
@@ -117,16 +117,16 @@ class AIModule:
                     thread.join()
 
                 object_present = self._majority_vote(detection_results)
-                logger.debug(f"AI detection completed. Object present: {object_present}")
+                logger.debug(f"Obstacle detection completed. Object present: {object_present}")
                 self.callback(object_present)
         except CameraError as e:
             logger.error(f"Camera error: {e}")
             self.callback(False)
         except Exception as e:
-            logger.exception("Unexpected error in AI detection.")
+            logger.exception("Unexpected error in obstacle detection.")
             self.callback(False)
         finally:
-            logger.debug("AI detection run completed.")
+            logger.debug("Obstacle detection run completed.")
 
     def _capture_and_process_frame(self, camera, detection_results):
         """
@@ -187,7 +187,7 @@ class AIModule:
 
     def stop(self):
         """
-        Stop the AI detection thread.
+        Stop the obstacle detection thread.
         """
         try:
             if self._running:
@@ -196,9 +196,9 @@ class AIModule:
                     self.stop_event.set()
                     if threading.current_thread() != self.thread:
                         self.thread.join()
-                logger.info("AI Module stopped.")
+                logger.info("DetectionModule stopped.")
             else:
-                logger.debug("AI Module stop requested but it's not running.")
+                logger.debug("DetectionModule stop requested but it's not running.")
         except Exception as e:
-            logger.exception("Failed to stop AI Module.")
-            raise GarageParkingAssistantError("Failed to stop AI Module") from e
+            logger.exception("Failed to stop DetectionModule.")
+            raise GarageParkingAssistantError("Failed to stop DetectionModule") from e

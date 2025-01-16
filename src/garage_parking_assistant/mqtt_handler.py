@@ -84,9 +84,9 @@ class MqttHandler:
         logger.info(f"Published garage state: {state}")
 
     def publish_ai_detection(self, ai_detection):
-        """Publish AI obstacle detection state."""
+        """Publish obstacle detection state."""
         self.client.publish(self.config.MQTT_TOPICS["ai_detection"], ai_detection, retain=True)
-        logger.info(f"Published AI detection: {ai_detection}")
+        logger.info(f"Published obstacle detection: {ai_detection}")
 
     def publish_process(self, process):
         """Publish current process state."""
