@@ -7,73 +7,75 @@ import logging
 import time
 from exceptions import CameraError
 
-def run_flask_app():
-    """
-    Run Flask app to stream camera feed.
-    """
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s [%(levelname)s] [Flask] %(message)s',
-        handlers=[logging.StreamHandler()]
-    )
-    logger = logging.getLogger('FlaskApp')
-
-    app = Flask(__name__)
-
-    try:
-        camera = SharedCamera.get_instance()
-        logger.info("Camera accessed by Flask app.")
-    except CameraError as e:
-        logger.critical(f"Camera access failed: {e}")
-        return  # Exit if camera fails
-
-    def gen_frames():
+class CameraStream:
+    @staticmethod
+    def run_flask_app():
         """
-        Generator to yield camera frames.
+        Run Flask app to stream camera feed.
         """
+        logging.basicConfig(
+            level=logging.INFO,
+            format='%(asctime)s [%(levelname)s] [Flask] %(message)s',
+            handlers=[logging.StreamHandler()]
+        )
+        logger = logging.getLogger('FlaskApp')
+
+        app = Flask(__name__)
+
         try:
-            while True:
-                # Capture frame-by-frame
-                frame = camera.capture_array()
-
-                # Convert color from RGB to BGR (OpenCV uses BGR)
-                frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
-
-                # Flip the frame vertically and horizontally (rotate 180 degrees)
-                frame = cv2.flip(frame, -1)
-
-                # Encode the frame in JPEG format with higher quality
-                ret, buffer = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 85])
-                if not ret:
-                    logger.warning("Failed to encode frame.")
-                    continue  # Skip the frame if encoding failed
-
-                # Convert the frame to bytes and yield it
-                frame_bytes = buffer.tobytes()
-                yield (b'--frame\r\n'
-                       b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
-                time.sleep(0.066)  # ~15 FPS
-        except GeneratorExit:
-            logger.info("Client disconnected from video feed.")
+            camera = SharedCamera.get_instance()
+            logger.info("Camera accessed by Flask app.")
         except CameraError as e:
-            logger.critical(f"Camera error during frame generation: {e}")
+            logger.critical(f"Camera access failed: {e}")
+            return  # Exit if camera fails
+
+        def gen_frames():
+            """
+            Generator to yield camera frames.
+            """
+            try:
+                while True:
+                    # Capture frame-by-frame
+                    frame = camera.capture_array()
+
+                    # Convert color from RGB to BGR (OpenCV uses BGR)
+                    frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+
+                    # Flip the frame vertically and horizontally (rotate 180 degrees)
+                    frame = cv2.flip(frame, -1)
+
+                    # Encode the frame in JPEG format with higher quality
+                    ret, buffer = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 85])
+                    if not ret:
+                        logger.warning("Failed to encode frame.")
+                        continue  # Skip the frame if encoding failed
+
+                    # Convert the frame to bytes and yield it
+                    frame_bytes = buffer.tobytes()
+                    yield (b'--frame\r\n'
+                           b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+                    time.sleep(0.066)  # ~15 FPS
+            except GeneratorExit:
+                logger.info("Client disconnected from video feed.")
+            except CameraError as e:
+                logger.critical(f"Camera error during frame generation: {e}")
+            except Exception as e:
+                logger.exception("Exception in frame generator.")
+            finally:
+                logger.info("Frame generation terminated.")
+
+        @app.route('/video_feed')
+        def video_feed():
+            """
+            Video feed route.
+            """
+            logger.info("Client connected to /video_feed.")
+            return Response(gen_frames(),
+                            mimetype='multipart/x-mixed-replace; boundary=frame')
+
+        try:
+            app.run(host='0.0.0.0', port=5000)
         except Exception as e:
-            logger.exception("Exception in frame generator.")
+            logger.exception("Exception in Flask app.")
         finally:
-            logger.info("Frame generation terminated.")
-
-    @app.route('/video_feed')
-    def video_feed():
-        """
-        Video feed route.
-        """
-        logger.info("Client connected to /video_feed.")
-        return Response(gen_frames(),
-                        mimetype='multipart/x-mixed-replace; boundary=frame')
-
-    try:
-        app.run(host='0.0.0.0', port=5000)
-    except Exception as e:
-        logger.exception("Exception in Flask app.")
-    finally:
-        logger.info("Flask app terminated.")
+            logger.info("Flask app terminated.")

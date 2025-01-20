@@ -9,7 +9,7 @@ from mqtt_handler import MqttHandler
 from sensor_manager import SensorManager
 from led_manager import LedManager
 from obstacle_detection import DetectionModule
-from camera_stream import run_flask_app
+from camera_stream import CameraStream
 from exceptions import GarageParkingAssistantError, LEDManagerError, MQTTError, SensorError
 from state_machine import ParkingStateMachine
 from garage_closure import GarageClosureHandler
@@ -385,7 +385,7 @@ class GarageParkingAssistant:
         Starts the Flask camera streaming app in a separate thread.
         """
         try:
-            flask_thread = threading.Thread(target=run_flask_app, daemon=True)
+            flask_thread = threading.Thread(target=CameraStream.run_flask_app, daemon=True)
             flask_thread.start()
             logger.info("Flask app started.")
         except Exception as e:
