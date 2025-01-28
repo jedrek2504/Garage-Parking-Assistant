@@ -5,6 +5,7 @@ import numpy as np
 # Directories
 TEST_FRAMES_DIR = "test_frames"
 OUTPUT_FRAMES_DIR = "output_frames"
+STAGES_FRAMES_DIR = "stages"
 
 # Constants
 ROI_TOP_LEFT = (110, 60)
@@ -18,19 +19,37 @@ if background_frame is None:
 
 # Extract background ROI
 background_roi = background_frame[
-    ROI_TOP_LEFT[1]:ROI_BOTTOM_RIGHT[1], ROI_TOP_LEFT[0]:ROI_BOTTOM_RIGHT[0]
+    ROI_TOP_LEFT[1]:ROI_BOTTOM_RIGHT[1],
+    ROI_TOP_LEFT[0]:ROI_BOTTOM_RIGHT[0]
 ]
 
-def process_frame(frame, background_roi, roi_top_left, roi_bottom_right):
+def process_frame(frame, background_roi, roi_top_left, roi_bottom_right, prefix=None):
     """
     Perform analysis to detect objects by comparing the current frame's ROI
-    with the background ROI.
+    with the background ROI. Additionally, save intermediate images to stages/.
     """
-    # Extract ROI from the frame
-    roi = frame[roi_top_left[1]:roi_bottom_right[1], roi_top_left[0]:roi_bottom_right[0]]
+
+    # 1) Zapis oryginału
+    if prefix is not None:
+        orig_path = os.path.join(STAGES_FRAMES_DIR, f"{prefix}_orig.jpg")
+        cv2.imwrite(orig_path, frame)
+
+    # Extract ROI
+    roi = frame[roi_top_left[1]:roi_bottom_right[1],
+                roi_top_left[0]:roi_bottom_right[0]]
+
+    # 2) Zapis samego ROI
+    if prefix is not None:
+        roi_path = os.path.join(STAGES_FRAMES_DIR, f"{prefix}_roi.jpg")
+        cv2.imwrite(roi_path, roi)
 
     # Calculate absolute difference with the background
     diff = cv2.absdiff(roi, background_roi)
+    # 3) Zapis różnicy pikseli
+    if prefix is not None:
+        diff_path = os.path.join(STAGES_FRAMES_DIR, f"{prefix}_diff.jpg")
+        cv2.imwrite(diff_path, diff)
+
     gray = cv2.cvtColor(diff, cv2.COLOR_BGR2GRAY)
 
     # Threshold to create a binary foreground mask
@@ -41,6 +60,11 @@ def process_frame(frame, background_roi, roi_top_left, roi_bottom_right):
     fg_mask = cv2.morphologyEx(fg_mask, cv2.MORPH_OPEN, kernel, iterations=2)
     fg_mask = cv2.morphologyEx(fg_mask, cv2.MORPH_DILATE, kernel, iterations=1)
 
+    # 4) Zapis zbinaryzowanego obrazu (fg_mask)
+    if prefix is not None:
+        mask_path = os.path.join(STAGES_FRAMES_DIR, f"{prefix}_mask.jpg")
+        cv2.imwrite(mask_path, fg_mask)
+
     # Find contours to detect objects
     contours, _ = cv2.findContours(fg_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
@@ -49,6 +73,7 @@ def process_frame(frame, background_roi, roi_top_left, roi_bottom_right):
         area = cv2.contourArea(cnt)
         if area > 500:  # Threshold for valid obstacles
             x, y, w, h = cv2.boundingRect(cnt)
+            # Translate bounding box coords to full frame coords
             detections.append((x + roi_top_left[0], y + roi_top_left[1],
                                x + roi_top_left[0] + w, y + roi_top_left[1] + h))
 
@@ -58,7 +83,9 @@ def process_test_frames():
     """
     Process all frames in the test_frames directory and save processed frames
     with detected obstacles to the output_frames directory.
+    Also saves intermediate stages to 'stages/' directory.
     """
+
     for frame_name in os.listdir(TEST_FRAMES_DIR):
         frame_path = os.path.join(TEST_FRAMES_DIR, frame_name)
 
@@ -71,23 +98,37 @@ def process_test_frames():
             print(f"Failed to load frame: {frame_path}")
             continue
 
-        # Perform obstacle analysis
-        detections = process_frame(frame, background_roi, ROI_TOP_LEFT, ROI_BOTTOM_RIGHT)
+        # Remove extension for prefix naming
+        base_name, ext = os.path.splitext(frame_name)
+        prefix = f"{base_name}"
+
+        # Perform obstacle analysis, passing prefix for debugging images
+        detections = process_frame(
+            frame, background_roi,
+            ROI_TOP_LEFT, ROI_BOTTOM_RIGHT,
+            prefix=prefix
+        )
 
         # Draw the ROI and obstacles
         cv2.rectangle(frame, ROI_TOP_LEFT, ROI_BOTTOM_RIGHT, (0, 255, 0), 2)  # ROI in green
         for x1, y1, x2, y2 in detections:
             cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 0, 255), 2)  # Obstacles in red
-            cv2.putText(frame, "Obstacle", (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
+            cv2.putText(frame, "Obstacle", (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX,
+                        0.5, (0, 0, 255), 1)
 
-        # Save the processed frame
+        # 5) Zapis finalnego obrazu z boxem również do stages/ (opcjonalnie)
+        final_stage_path = os.path.join(STAGES_FRAMES_DIR, f"{prefix}_box.jpg")
+        cv2.imwrite(final_stage_path, frame)
+
+        # Save the processed frame in output_frames
         output_path = os.path.join(OUTPUT_FRAMES_DIR, frame_name)
         cv2.imwrite(output_path, frame)
         print(f"Processed and saved: {output_path}")
 
 if __name__ == "__main__":
-    # Ensure output directory exists
+    # Ensure output directories exist
     os.makedirs(OUTPUT_FRAMES_DIR, exist_ok=True)
+    os.makedirs(STAGES_FRAMES_DIR, exist_ok=True)
 
     # Process test frames
     process_test_frames()
