@@ -1,0 +1,15 @@
+[Unit]
+Description=Garage Parking Assistant Service
+After=network.target
+
+[Service]
+Type=simple
+User=kostyk
+WorkingDirectory=/home/kostyk/gitrepos/Garage-Parking-Assistant
+ExecStart=/home/kostyk/gitrepos/Garage-Parking-Assistant/start.sh
+Restart=on-failure
+Environment=PATH=/home/kostyk/gitrepos/Garage-Parking-Assistant/.venv/bin:/usr/bin:/bin
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target
