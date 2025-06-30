@@ -26,8 +26,8 @@ class DetectionModule:
         self.callback = callback
         self.background_frame_path = self.config.BACKGROUND_FRAME_PATH
         self.background_frame = self._load_background_frame()
-        self.roi_top_left = (110, 60)
-        self.roi_bottom_right = (550, 470)
+        self.roi_top_left = (90, 40)
+        self.roi_bottom_right = (565, 470)
         self.background_roi = self.background_frame[
             self.roi_top_left[1]:self.roi_bottom_right[1],
             self.roi_top_left[0]:self.roi_bottom_right[0],

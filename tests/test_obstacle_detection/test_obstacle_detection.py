@@ -8,8 +8,8 @@ OUTPUT_FRAMES_DIR = "output_frames"
 STAGES_FRAMES_DIR = "stages"
 
 # Constants
-ROI_TOP_LEFT = (110, 60)
-ROI_BOTTOM_RIGHT = (550, 470)
+ROI_TOP_LEFT = (90, 40)
+ROI_BOTTOM_RIGHT = (565, 470)
 
 # Load background frame for analysis
 BACKGROUND_FRAME_PATH = "background_frame.jpg"
