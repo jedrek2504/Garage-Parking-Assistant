@@ -66,8 +66,8 @@
   action:
     - service: notify.mobile_app_iphone_jedrzej
       data:
-        title: 'ALARM: Otwarta wiata garażowa'
-        message: 'System wykrył, że znajdujesz się poza domem, a wiata garażowa jest otwarta.'
+        title: 'Garage Alert 🚨: Garage door is open'
+        message: 'System recognized that you are not home, yet the garage door has not been closed'
   mode: single
 
 - alias: Notify on Unauthorized Garage Door Access Attempt
@@ -77,7 +77,7 @@
   action:
     - service: notify.mobile_app_iphone_jedrzej
       data:
-        title: "Security Alert: Unauthorized Garage Door Access Attempt"
+        title: "Garage Alert 🚨: Unauthorized Garage Door Access Attempt"
         message: "An attempt was made to open the garage door while you were not home."
   id: notify_on_unauthorized_garage_access
   mode: single
@@ -91,7 +91,7 @@
   action:
     - service: notify.mobile_app_iphone_jedrzej
       data:
-        title: "Garage Alert 🚨"
+        title: "Garage Alert 🚨: Obstacle detected"
         message: "An obstacle has been detected in your garage."
   mode: single
   id: notify_obstacle_detected
@@ -105,7 +105,7 @@
   action:
     - service: notify.mobile_app_iphone_jedrzej
       data:
-        title: "Garage Update ✅"
+        title: "Garage Update ✅: Obstacle removed"
         message: "The obstacle in your garage has been removed."
   mode: single
   id: notify_obstacle_removed
