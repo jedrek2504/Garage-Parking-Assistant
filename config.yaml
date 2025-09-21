@@ -1,0 +1,48 @@
+mqtt:
+  broker: "localhost"
+  port: 1883
+  base_topic: "garage/parking"
+  topics:
+    settings: "garage/parking/settings"
+    garage_command: "garage/parking/garage_door/command"
+    garage_state: "garage/parking/garage_door/state"
+    ai_detection: "garage/parking/ai_detection"
+    process_state: "garage/parking/process_state"
+    user_status: "homeassistant/status/user_is_home"
+    system_enabled: "garage/parking/system_enabled"
+
+sensors:
+  front:
+    type: "ultrasonic"
+    trig_pin: 22
+    echo_pin: 23
+  left:
+    type: "ultrasonic"
+    trig_pin: 24
+    echo_pin: 25
+  right:
+    type: "ultrasonic"
+    trig_pin: 17
+    echo_pin: 27
+
+thresholds:
+  red:
+    front: 3
+    left: 3
+    right: 3
+  orange:
+    front: 10
+    left: 10
+    right: 10
+
+led:
+  brightness: 20
+
+system:
+  enabled: false
+
+logging:
+  level: INFO
+  file: "garage_parking_assistant.log"
+
+background_frame_path: "background_frame.jpg"

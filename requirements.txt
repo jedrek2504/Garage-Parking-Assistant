@@ -1,2 +1,6 @@
-rpi-ws281x==5.0.0
-RPi.GPIO==0.7.1
+adafruit-blinka
+adafruit-circuitpython-neopixel
+opencv-python
+paho-mqtt
+flask
+pyyaml

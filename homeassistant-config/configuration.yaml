@@ -1,0 +1,137 @@
+# homeassistant-config/configuration.yaml
+
+mqtt:
+
+  sensor:
+    - name: "Front Parking Distance"
+      state_topic: "garage/parking/sensor/front/distance"
+      availability_topic: "garage/parking/sensor/front/availability"
+      unit_of_measurement: "cm"
+      value_template: "{{ value | float | round(2) }}"
+      unique_id: "sensor_parking_distance_front"
+
+    - name: "Left Parking Distance"
+      state_topic: "garage/parking/sensor/left/distance"
+      availability_topic: "garage/parking/sensor/left/availability"
+      unit_of_measurement: "cm"
+      value_template: "{{ value | float | round(2) }}"
+      unique_id: "sensor_parking_distance_left"
+
+    - name: "Right Parking Distance"
+      state_topic: "garage/parking/sensor/right/distance"
+      availability_topic: "garage/parking/sensor/right/availability"
+      unit_of_measurement: "cm"
+      value_template: "{{ value | float | round(2) }}"
+      unique_id: "sensor_parking_distance_right"
+
+    - name: "Obstacle Detection"
+      state_topic: "garage/parking/ai_detection"
+      value_template: "{{ value }}"
+      icon: "mdi:car-brake-alert"
+      unique_id: "sensor_ai_obstacle_detection"
+    
+    - name: "Garage Process State"
+      state_topic: "garage/parking/process_state"
+      icon: "mdi:garage"
+      unique_id: "sensor_garage_process_state"
+      
+# Binary Sensors
+  binary_sensor:
+    - name: "User Is Home"
+      state_topic: "homeassistant/status/user_is_home"
+      payload_on: "on"
+      payload_off: "off"
+      device_class: presence
+      unique_id: "binary_sensor_user_is_home"
+  
+    - name: "System Enabled"
+      state_topic: "garage/parking/system_enabled"
+      payload_on: "ON"
+      payload_off: "OFF"
+      device_class: power
+      unique_id: "binary_sensor_system_enabled"
+
+# Cover
+  cover:
+    - name: "Garage Door"
+      command_topic: "garage/parking/garage_door/command"
+      state_topic: "garage/parking/garage_door/state"
+      payload_open: "OPEN"
+      payload_close: "CLOSE"
+      state_open: "open"
+      state_closed: "closed"
+      optimistic: false
+      qos: 0
+      retain: false
+      icon: "mdi:garage"
+
+input_number:
+  red_distance_threshold_front:
+    name: "Red Distance Threshold Front"
+    initial: 3
+    min: 1
+    max: 100
+    step: 1
+    mode: box
+    icon: "mdi:map-marker-distance"
+
+  orange_distance_threshold_front:
+    name: "Orange Distance Threshold Front"
+    initial: 10
+    min: 1
+    max: 100
+    step: 1
+    mode: box
+    icon: "mdi:map-marker-distance"
+
+  red_distance_threshold_left:
+    name: "Red Distance Threshold Left"
+    initial: 3
+    min: 1
+    max: 100
+    step: 1
+    mode: box
+    icon: "mdi:map-marker-distance"
+
+  orange_distance_threshold_left:
+    name: "Orange Distance Threshold Left"
+    initial: 10
+    min: 1
+    max: 100
+    step: 1
+    mode: box
+    icon: "mdi:map-marker-distance"
+
+  red_distance_threshold_right:
+    name: "Red Distance Threshold Right"
+    initial: 3
+    min: 1
+    max: 100
+    step: 1
+    mode: box
+    icon: "mdi:map-marker-distance"
+
+  orange_distance_threshold_right:
+    name: "Orange Distance Threshold Right"
+    initial: 10
+    min: 1
+    max: 100
+    step: 1
+    mode: box
+    icon: "mdi:map-marker-distance"
+
+  led_brightness:
+    name: "LED Brightness"
+    initial: 20
+    min: 0
+    max: 100
+    step: 5
+    mode: slider
+    icon: "mdi:brightness-6"
+
+input_boolean:
+  user_is_home:
+    name: "User is Home"
+    initial: on
+
+automation: !include automations.yaml

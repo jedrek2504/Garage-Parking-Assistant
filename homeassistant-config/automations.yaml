@@ -1,0 +1,111 @@
+# homeassistant-config/automations.yaml
+
+- alias: Send Distance Thresholds and Brightness to Raspberry Pi
+  trigger:
+    - platform: state
+      entity_id:
+        - input_number.red_distance_threshold_front
+        - input_number.orange_distance_threshold_front
+        - input_number.red_distance_threshold_left
+        - input_number.orange_distance_threshold_left
+        - input_number.red_distance_threshold_right
+        - input_number.orange_distance_threshold_right
+        - input_number.led_brightness
+  action:
+    - service: mqtt.publish
+      data:
+        topic: garage/parking/settings
+        payload: >
+          {
+            "red_distance_threshold_front": {{ states('input_number.red_distance_threshold_front') | int }},
+            "orange_distance_threshold_front": {{ states('input_number.orange_distance_threshold_front') | int }},
+            "red_distance_threshold_left": {{ states('input_number.red_distance_threshold_left') | int }},
+            "orange_distance_threshold_left": {{ states('input_number.orange_distance_threshold_left') | int }},
+            "red_distance_threshold_right": {{ states('input_number.red_distance_threshold_right') | int }},
+            "orange_distance_threshold_right": {{ states('input_number.orange_distance_threshold_right') | int }},
+            "brightness": {{ states('input_number.led_brightness') | int }}
+          }
+        retain: true
+  id: send_distance_thresholds_and_brightness
+
+- alias: Publish User Status to MQTT
+  trigger:
+    - platform: state
+      entity_id: input_boolean.user_is_home
+  action:
+    - service: mqtt.publish
+      data:
+        topic: homeassistant/status/user_is_home
+        payload: "{{ 'on' if is_state('input_boolean.user_is_home', 'on') else 'off' }}"
+        retain: true
+  id: publish_user_status
+
+- alias: Publish Garage Door State to MQTT
+  trigger:
+    - platform: state
+      entity_id: cover.garage_door
+  action:
+    - service: mqtt.publish
+      data:
+        topic: "garage/parking/garage_door/state"
+        payload: "{{ 'open' if is_state('cover.garage_door', 'open') else 'closed' }}"
+        retain: true
+  id: publish_garage_door_state
+
+- id: notify_if_garage_door_open_when_user_away
+  alias: Notify if Garage Door is Open When User is Away
+  trigger:
+    - platform: state
+      entity_id: input_boolean.user_is_home
+      from: 'on'
+      to: 'off'
+  condition:
+    - condition: state
+      entity_id: cover.garage_door
+      state: 'open'
+  action:
+    - service: notify.mobile_app_iphone_jedrzej
+      data:
+        title: 'Garage Alert 🚨: Garage door is open'
+        message: 'System recognized that you are not home, yet the garage door has not been closed'
+  mode: single
+
+- alias: Notify on Unauthorized Garage Door Access Attempt
+  trigger:
+    - platform: mqtt
+      topic: "garage/parking/unauthorized_access"
+  action:
+    - service: notify.mobile_app_iphone_jedrzej
+      data:
+        title: "Garage Alert 🚨: Unauthorized Garage Door Access Attempt"
+        message: "An attempt was made to open the garage door while you were not home."
+  id: notify_on_unauthorized_garage_access
+  mode: single
+
+- alias: Notify When Obstacle Detected
+  description: Send a mobile notification when an obstacle is detected in the garage.
+  trigger:
+    - platform: state
+      entity_id: sensor.ai_obstacle_detection
+      to: "DETECTED"
+  action:
+    - service: notify.mobile_app_iphone_jedrzej
+      data:
+        title: "Garage Alert 🚨: Obstacle detected"
+        message: "An obstacle has been detected in your garage."
+  mode: single
+  id: notify_obstacle_detected
+
+- alias: Notify When Obstacle Removed
+  trigger:
+    - platform: state
+      entity_id: sensor.ai_obstacle_detection
+      from: "DETECTED"
+      to: "CLEAR"
+  action:
+    - service: notify.mobile_app_iphone_jedrzej
+      data:
+        title: "Garage Update ✅: Obstacle removed"
+        message: "The obstacle in your garage has been removed."
+  mode: single
+  id: notify_obstacle_removed
