@@ -1,8 +1,12 @@
-# Garage Parking Assistant
+# Garage Parking Assistant 🚗
 
 Smart parking assistant for Raspberry Pi with ultrasonic sensors, LED strip, camera, and Home Assistant integration.
 
----
+## 🎥 Demo Video
+
+You can watch the final presentation of the system here:  
+➡️ [Download / Watch Video](https://github.com/jedrek2504/Garage-Parking-Assistant/releases/download/v1.0.0/Garage_Parking_Assistant_demo.Polish.MP4)
+
 
 ## Installation
 
@@ -28,7 +32,7 @@ pip install -r requirements.txt
 ### 4. Configure Home Assistant
 
 * Run Home Assistant in Docker (see [Home Assistant docs](https://www.home-assistant.io/installation/linux)).
-* Copy configuration files from this repo (`configuration.yaml`, `automations.yaml`) into your Home Assistant config directory.
+* Copy configuration files from this repo (`homeassistant-config/configuration.yaml`, `homeassistant-config/automations.yaml`) into your Home Assistant config directory.
 * (Optional) To use the same dashboard view, create a new dashboard in Home Assistant and paste the contents of `dashboard.yaml` into the **Raw configuration editor**.
 
 ### 5. Run as a service
