@@ -192,8 +192,8 @@ homeassistant-config/www/
 *.jpg
 *.mp4
 
-# Personal stuff
-prompt.txt
-diff_prompt.txt
-generate_prompt.sh
-generate_diff.sh
+# Ignore Windows Zone.Identifier files
+*.Zone.Identifier
+
+# Ignore demo MP4 files
+demo/*.MP4
